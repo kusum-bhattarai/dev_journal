@@ -13,7 +13,7 @@ const Input = ({ value, onChange, placeholder = '', className = '' }: InputProps
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className={`w-full h-24 bg-matrix-black text-matrix-green border-none outline-none p-3 resize-none rounded ${className}`}
+      className={`w-full h-12 bg-matrix-black text-matrix-green border-none outline-none p-2 resize-none rounded ${className}`}
     />
   );
 };

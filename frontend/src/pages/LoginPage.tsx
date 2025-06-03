@@ -27,7 +27,7 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6">
       <Navbar />
-      <h1 className="text-4xl mb-6 animate-glitch text-center">Login</h1>
+      <h1 className="text-4xl mb-6 animate-glitch text-center pt-2">Login</h1>
       <div className="max-w-md mx-auto bg-matrix-gray p-6 rounded-lg shadow-lg animate-fadeIn">
         <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
         <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="mt-4" />

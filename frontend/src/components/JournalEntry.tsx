@@ -40,19 +40,15 @@ const JournalEntry = ({userId}: {userId: string}) => {
     };
 
     return (
-        <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6">
+        <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6 flex flex-col items-center">
             <h1 className="text-2xl mb-4 animate-glitch">DevJournal: Thoughts dump</h1>
-            <div className="border border-matrix-green p-4 rounded-lg bg-matrix-gray shadow-lg animate-fadeIn">
+            <div className="max-w-md w-full border border-matrix-green p-4 rounded-lg bg-matrix-gray shadow-lg animate-fadeIn">
                 <Input
-                    className="w-full bg-matrix-black text-matrix-green border-none outline-none p-3 resize-none"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     placeholder="Enter your thoughts..."
                 />
-                <Button
-                    className="mt-2 bg-matrix-green text-matrix-black px-4 py-2 rounded hover: bg-green-500 transition duration-300"
-                    onClick={handleSubmit}
-                >
+                <Button onClick={handleSubmit}>
                     Commit Entry
                 </Button>
             </div>

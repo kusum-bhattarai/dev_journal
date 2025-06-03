@@ -26,9 +26,9 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6">
+    <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6 pt-2">
       <Navbar />
-      <h1 className="text-4xl mb-6 animate-glitch text-center">Register</h1>
+      <h1 className="text-4xl mb-6 animate-glitch text-center pt-2">Register</h1>
       <div className="max-w-md mx-auto bg-matrix-gray p-6 rounded-lg shadow-lg animate-fadeIn">
         <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" />
         <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="mt-4" />
