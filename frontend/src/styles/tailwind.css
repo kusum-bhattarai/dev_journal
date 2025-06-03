@@ -1,6 +1,6 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilites;
+@tailwind utilities;
 
 body {
     background-color: black;
