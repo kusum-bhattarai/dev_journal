@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilites;
+
+body {
+    background-color: black;
+    color: #008F11;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.animate-glitch {
+    animation: glitch 1s linear infinte;
+}
+
+@keyframes glitch {
+    2%, 64% {
+        transform: translate (2px, 0) skew(0deg);
+    }
+    4%, 60% {
+        transform: translate (-2px, 0) skew(0deg);
+    }
+    62% {
+        transform: translate(0,0) skew(0deg);
+    }
+}
