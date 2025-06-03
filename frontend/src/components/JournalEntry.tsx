@@ -2,6 +2,8 @@ import React, {useState, useEffect, useCallback } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-dark.css';
 import axios from 'axios';
+import Button from './Button';
+import Input from './Input';
 
 const JournalEntry = ({userId}: {userId: string}) => {
     const [content, setContent] = useState('');
@@ -38,29 +40,29 @@ const JournalEntry = ({userId}: {userId: string}) => {
     };
 
     return (
-        <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-4">
+        <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6">
             <h1 className="text-2xl mb-4 animate-glitch">DevJournal: Thoughts dump</h1>
-            <div className="border border-matrix-green p-4 rounded">
-                <textarea
-                    className="w-full bg-matrix-black text-matrix-green border-none outline-none"
+            <div className="border border-matrix-green p-4 rounded-lg bg-matrix-gray shadow-lg animate-fadeIn">
+                <Input
+                    className="w-full bg-matrix-black text-matrix-green border-none outline-none p-3 resize-none"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     placeholder="Enter your thoughts..."
                 />
-                <button
-                    className="mt-2 bg-matrix-green text-matrix-black px-4 py-2 rounded hover: bg-green-500"
+                <Button
+                    className="mt-2 bg-matrix-green text-matrix-black px-4 py-2 rounded hover: bg-green-500 transition duration-300"
                     onClick={handleSubmit}
                 >
-                    Commit JournalEntry
-                </button>
+                    Commit Entry
+                </Button>
             </div>
-            <div className="mt-4">
+            <div className="mt-6">
                 {journals.map((journal: any) => (
-                    <div key={journal.journal_id} className="mb-4">
+                    <div key={journal.journal_id} className="mb-4 p-4 bg-matrix-gray rounded-lg animate-fadeIn">
                         <pre>
                             <code className="language-markdown">{journal.content}</code>
                         </pre>
-                        <p className="text-sm">Created: {new Date(journal.created_at).toLocaleString()}</p>
+                        <p className="text-sm text-matrix-green">Created: {new Date(journal.created_at).toLocaleString()}</p>
                     </div>
                 ))}
             </div>
