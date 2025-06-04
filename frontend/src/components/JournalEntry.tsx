@@ -41,7 +41,7 @@ const JournalEntry = ({userId}: {userId: string}) => {
 
     return (
         <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6 flex flex-col items-center">
-            <h1 className="text-2xl mb-4 animate-glitch">DevJournal: Thoughts dump</h1>
+            <h1 className="text-2xl mb-4 animate-glitch">Log your thoughts!</h1>
             <div className="max-w-md w-full border border-matrix-green p-4 rounded-lg bg-matrix-gray shadow-lg animate-fadeIn">
                 <Input
                     value={content}
@@ -62,6 +62,8 @@ const JournalEntry = ({userId}: {userId: string}) => {
                     </div>
                 ))}
             </div>
+
+
         </div>
     );
 };
