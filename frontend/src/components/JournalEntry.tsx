@@ -47,10 +47,13 @@ const JournalEntry = ({userId}: {userId: string}) => {
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     placeholder="Enter your thoughts..."
+                    className='h-48'
                 />
+                <div className="flex justify-center mt-4">
                 <Button onClick={handleSubmit}>
                     Commit Entry
                 </Button>
+                </div>
             </div>
             <div className="mt-6">
                 {journals.map((journal: any) => (
