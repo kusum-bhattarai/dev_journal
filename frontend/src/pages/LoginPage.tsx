@@ -34,6 +34,11 @@ const LoginPage = () => {
         <Button onClick={handleLogin} className="mt-6 w-full">
           Login
         </Button>
+        <a
+          href="http://localhost:3001/auth/github"
+          className="mt-4 block w-full text-center bg-matrix-green text-matrix-black px-4 py-2 rounded hover:bg-green-500 transition duration-300"
+          > Login with GitHub
+      </a>
       </div>
     </div>
   );
