@@ -17,8 +17,14 @@ app.get('/', (req, res) => {
 // Test database connection
 app.get('/test-db', async (req, res) => {
   try {
-    const result = await pool.query('SELECT NOW()');
-    res.json({ message: 'Database connected', time: result.rows[0].now });
+    const result = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name IN ('users', 'journal_entries')
+    `);
+    const tables = result.rows.map(row => row.table_name);
+    res.json({ message: 'Database connected', tables });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
