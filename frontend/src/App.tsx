@@ -44,8 +44,8 @@ const App = () => {
         </div>
       )}
       <Routes>
-      <Route path="/journal" element={<JournalEntry userId="test-user" />} />
-        <Route path="/" element={<Home />} />
+        <Route path="/journal" element={<ProtectedRoute><JournalEntry userId="test-user" /></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
       </Routes>
