@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Button from '../components/Button';
+import { FaGithub } from 'react-icons/fa';
 import Input from '../components/Input';
 import Navbar from '../components/Navbar';
 
@@ -37,8 +38,14 @@ const LoginPage = () => {
         <a
           href="http://localhost:3001/auth/github"
           className="mt-4 block w-full text-center bg-matrix-green text-matrix-black px-4 py-2 rounded hover:bg-green-500 transition duration-300"
-          > Login with GitHub
+          > 
+          <FaGithub className="mr-2" /> Login with GitHub
       </a>
+      <div className="text-center mt-4">
+          <Link to="/register" className="text-matrix-green hover:underline">
+            New user? Register here!
+          </Link>
+        </div>
       </div>
     </div>
   );
