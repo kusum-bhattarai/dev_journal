@@ -37,7 +37,7 @@ const LoginPage = () => {
         </Button>
         <a
           href="http://localhost:3001/auth/github"
-          className="mt-4 block w-full text-center bg-matrix-green text-matrix-black px-4 py-2 rounded hover:bg-green-500 transition duration-300"
+          className="mt-4 block w-full text-center bg-matrix-green text-matrix-black px-4 py-2 rounded hover:bg-green-500 transition duration-300 flex items-center justify-center"
           > 
           <FaGithub className="mr-2" /> Login with GitHub
       </a>

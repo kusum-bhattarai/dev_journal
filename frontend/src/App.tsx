@@ -19,7 +19,7 @@ const App = () => {
       setShowPopup(true);
       const timer = setTimeout(() => {
         setShowPopup(false);
-        navigate('/'); // Redirect to homepage for existing users (we’ll refine for new users later)
+        navigate('/'); // Redirect to homepage for existing users 
     }, 2000);
     return () => clearTimeout(timer);
   }
