@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaGithub } from 'react-icons/fa'; 
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -10,6 +10,9 @@ const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupMessage, setPopupMessage] = useState('');
 
   const handleRegister = async () => {
     try {
@@ -26,6 +29,24 @@ const RegisterPage = () => {
     }
   };
 
+  useEffect(() => {
+    const token = searchParams.get('token');
+    const registered = searchParams.get('registered');
+    if (token) {
+      if (registered === 'true') {
+        setPopupMessage('Already registered!');
+      } else {
+        setPopupMessage('Registration Successful!');
+      }
+      setShowPopup(true);
+      const timer = setTimeout(() => {
+        setShowPopup(false);
+        navigate('/login');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, navigate]);
+
   return (
     <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6 pt-2">
       <Navbar />
@@ -38,12 +59,20 @@ const RegisterPage = () => {
           Register
         </Button>
         <a
-          href="http://localhost:3001/auth/github"
+          href="http://localhost:3001/auth/github?state=register"
           className="mt-4 block w-full text-center bg-matrix-green text-matrix-black px-4 py-2 rounded hover:bg-green-500 transition duration-300 flex items-center justify-center"
         >
           <FaGithub className="mr-2" /> Register with GitHub
         </a>
       </div>
+      {showPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-matrix-gray p-6 rounded-lg shadow-lg text-matrix-green font-mono animate-fadeIn">
+            <h2 className="text-2xl mb-2">{popupMessage}</h2>
+            <p>Redirecting to login...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

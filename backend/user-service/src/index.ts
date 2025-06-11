@@ -5,6 +5,13 @@ import { Strategy as GitHubStrategy } from 'passport-github2';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
 
+interface User {
+  user_id: number;
+  github_id: string;
+  username: string;
+  email: string;
+}
+
 require('dotenv').config();
 
 const app = express();
@@ -48,20 +55,23 @@ passport.use(
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       callbackURL: 'http://localhost:3001/auth/github/callback',
     },
-    async (accessToken: string, refreshToken: string, profile: any, done: (err: any, user?: any) => void) => {
+    async (accessToken: string, refreshToken: string, profile: any, done: (err: any, user?: User) => void) => {
+      //debugging: console.log('GitHub Profile:', profile);
+      const githubId = profile.id.toString();
+      const username = profile.username || profile.displayName || 'Unknown';
+      const email = profile.emails?.[0]?.value || ''; // Fallback if email is missing
       try {
-        const result = await pool.query('SELECT * FROM users WHERE github_id = $1', [profile.id]);
+        const result = await pool.query('SELECT * FROM users WHERE github_id = $1', [githubId]);
         const user = result.rows[0];
-        if (user) {
-          // User exists, return the user
-          return done(null, user);
-        }
-        // User doesn't exist, create a new one
-        const newUser = await pool.query(
-          'INSERT INTO users (username, email, github_id) VALUES ($1, $2, $3) RETURNING *',
-          [profile.username, profile.emails?.[0]?.value || '', profile.id]
-        );
-        return done(null, newUser.rows[0]);
+        if (!user){
+          const newUser = await pool.query(
+            'INSERT INTO users (username, email, github_id) VALUES ($1, $2, $3) RETURNING *',
+            [username, email, githubId]
+          );
+          return done(null, newUser.rows[0] as User);
+      }
+      // Existing user - return existing user
+      return done(null, user);
       } catch (err: any) {
         return done(err);
       }
@@ -70,16 +80,34 @@ passport.use(
 );
 
 // GitHub OAuth routes
-app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+app.get('/auth/github', passport.authenticate('github', { scope: ['user:email']}));
 
 app.get(
   '/auth/github/callback',
   passport.authenticate('github', { session: false, failureRedirect: 'http://localhost:3000/login' }),
-  (req: any, res) => {
+  async (req: any, res) => {
+    const profile = req.user as User;
+    const githubId = profile.github_id;
     // Generate JWT token
-    const token = jwt.sign({ userId: req.user.user_id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
-    // Redirect to frontend with token
-    res.redirect(`http://localhost:3000/?token=${token}`);
+    const token = jwt.sign({ userId: profile.user_id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+    const state = req.query.state || 'login'; // Default to 'login' if state is missing
+
+    console.log('Callback State:', state); // Debug the state value
+
+    try{
+      const result = await pool.query('SELECT * FROM users WHERE github_id = $1', [githubId]);
+      if (result.rows.length > 0) {
+        // Existing user
+        res.redirect(`http://${state === 'register' ? 'localhost:3000/register' : 'localhost:3000/login'}?token=${token}®istered=true`);
+      } else {
+        // New user
+        res.redirect(`http://${state === 'register' ? 'localhost:3000/register' : 'localhost:3000/login'}?token=${token}`);
+      }
+    }
+    catch(error){
+      console.error('Error checking user:', error);
+      res.status(500).send('Internal Server Error');
+    }
   }
 );
 
