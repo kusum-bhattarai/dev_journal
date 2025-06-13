@@ -65,14 +65,6 @@ const RegisterPage = () => {
           <FaGithub className="mr-2" /> Register with GitHub
         </a>
       </div>
-      {showPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-matrix-gray p-6 rounded-lg shadow-lg text-matrix-green font-mono animate-fadeIn">
-            <h2 className="text-2xl mb-2">{popupMessage}</h2>
-            <p>Redirecting to login...</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -31,18 +31,43 @@ const LoginPage = () => {
 
   useEffect(() => {
     const token = searchParams.get('token');
-    const registered = searchParams.get('registered');
+    const status = searchParams.get('status');
+    let message = '';
+    let redirectPath = '/';
+
+    // Handle successful login
     if (token) {
-      if (registered === 'true') {
-        setPopupMessage('Already registered!');
-      } else {
-        setPopupMessage('Login Successful!');
+      localStorage.setItem('token', token);
+      message = 'Login Successful!';
+      redirectPath = '/';
+    }
+
+    // Handle status messages from GitHub auth
+    if (status) {
+      switch (status) {
+        case 'registered':
+          message = 'Registration successful! Please log in.';
+          redirectPath = '/login';
+          break;
+        case 'already-registered':
+          message = 'This GitHub account is already registered. Please log in.';
+          redirectPath = '/login';
+          break;
+        case 'not-registered':
+          message = 'This GitHub account is not registered. Please register first.';
+          redirectPath = '/login';
+          break;
       }
+    }
+    
+    if (message) {
+      setPopupMessage(message);
       setShowPopup(true);
       const timer = setTimeout(() => {
         setShowPopup(false);
-        navigate('/');
-      }, 2000);
+        // Use replace to remove the query params from the URL
+        navigate(redirectPath, { replace: true });
+      }, 3000); // Increased time to 3 seconds for better UX
       return () => clearTimeout(timer);
     }
   }, [searchParams, navigate]);
