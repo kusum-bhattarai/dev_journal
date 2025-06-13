@@ -125,8 +125,11 @@ passport.use(
       clientID: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       callbackURL: 'http://localhost:3001/auth/github/callback',
+      passReqToCallback: true, //passing the request object to the callback
     },
-    async (accessToken: string, refreshToken: string, profile: any, done: (err: any, user?: User) => void) => {
+    async (req:any, accessToken: string, refreshToken: string, profile: any, done: (err: any, user: User | false, info?: { message: string }) => void) => {
+
+      const state = req.query.state;  //register or login
       //debugging: console.log('GitHub Profile:', profile);
       const githubId = profile.id.toString();
       const username = profile.username || profile.displayName || 'Unknown';
@@ -134,51 +137,71 @@ passport.use(
       try {
         const result = await pool.query('SELECT * FROM users WHERE github_id = $1', [githubId]);
         const user = result.rows[0];
-        if (!user){
+
+        if(state==='register'){
+          if (user) {
+            // User trying to register, but already exists
+            return done(null, false, { message: 'already-registered' });
+        }
+        // New user registering
           const newUser = await pool.query(
             'INSERT INTO users (username, email, github_id) VALUES ($1, $2, $3) RETURNING *',
-            [username, email, githubId]
+            [profile.username, profile.emails?.[0]?.value || '', profile.id]
           );
-          return done(null, newUser.rows[0] as User);
-      }
-      // Existing user - return existing user
-      return done(null, user);
+          return done(null, newUser.rows[0], { message: 'registration-successful' });
+        }
+        
+        if (state === 'login') {
+          if (user) {
+            // Existing user logging in
+            return done(null, user, { message: 'login-successful' });
+          }
+          // User trying to log in, but doesn't exist
+          return done(null, false, { message: 'not-registered' });
+        }
+        // Default fallback
+        return done(new Error('Invalid state for authentication'), false);
       } catch (err: any) {
-        return done(err);
+        return done(err, false);
       }
     }
   )
 );
 
 // GitHub OAuth routes
-app.get('/auth/github', passport.authenticate('github', { scope: ['user:email']}));
+app.get('/auth/github', (req, res, next) => {
+  const state = req.query.state === 'register' ? 'register' : 'login';
+  passport.authenticate('github', { scope: ['user:email'], state})(req, res, next);
+});
 
 app.get(
   '/auth/github/callback',
-  passport.authenticate('github', { session: false, failureRedirect: 'http://localhost:3000/login' }),
-  async (req: any, res) => {
-    const profile = req.user as User;
-    const githubId = profile.github_id;
-    // Generate JWT token
-    const token = jwt.sign({ userId: profile.user_id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
-    const state = req.query.state || 'login'; // Default to 'login' if state is missing
+  (req, res, next) => {
+    passport.authenticate('github', { session: false, failureRedirect: 'http://localhost:3000/login' }, (err: { message: any; }, user: { user_id: any; }, info: { message: any; }) => {
+        if (err) {
+            return res.redirect(`http://localhost:3000/login?error=${err.message}`);
+        }
 
-    console.log('Callback State:', state); // Debug the state value
+        const { message } = info;
 
-    try{
-      const result = await pool.query('SELECT * FROM users WHERE github_id = $1', [githubId]);
-      if (result.rows.length > 0) {
-        // Existing user
-        res.redirect(`http://${state === 'register' ? 'localhost:3000/register' : 'localhost:3000/login'}?token=${token}®istered=true`);
-      } else {
-        // New user
-        res.redirect(`http://${state === 'register' ? 'localhost:3000/register' : 'localhost:3000/login'}?token=${token}`);
-      }
-    }
-    catch(error){
-      console.error('Error checking user:', error);
-      res.status(500).send('Internal Server Error');
-    }
+        if (message === 'registration-successful') {
+            return res.redirect('http://localhost:3000/login?status=registered');
+        }
+        if (message === 'already-registered') {
+            return res.redirect('http://localhost:3000/login?status=already-registered');
+        }
+        if (message === 'not-registered') {
+            return res.redirect('http://localhost:3000/login?status=not-registered');
+        }
+        if (message === 'login-successful' && user) {
+            const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+            return res.redirect(`http://localhost:3000/?token=${token}`);
+        }
+
+        // Fallback for any other case
+        return res.redirect('http://localhost:3000/login');
+
+    })(req, res, next);
   }
 );
 
