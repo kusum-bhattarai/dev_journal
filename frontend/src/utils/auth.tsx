@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const value = {
     token,
     login,
-    logout,
+    logout
   };
 
   return (

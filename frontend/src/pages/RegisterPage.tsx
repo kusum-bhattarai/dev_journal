@@ -10,7 +10,6 @@ const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [showPopup, setShowPopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState('');
 
@@ -27,36 +26,13 @@ const RegisterPage = () => {
       }
       setPopupMessage('Registration successful! Please log in.');
       setShowPopup(true);
-      setTimeout(() => {
-        setShowPopup(false);
-        navigate('/login');
-      }, 3000);
+      setTimeout(() => navigate('/login'), 2000);
     } catch (error: any) {
       setPopupMessage(error.message);
       setShowPopup(true);
-      setTimeout(() => {
-        navigate('/login'); 
-      }, 2000);
+      setTimeout(() => setShowPopup(false), 3000);
     }
   };
-
-  useEffect(() => {
-    const token = searchParams.get('token');
-    const registered = searchParams.get('registered');
-    if (token) {
-      if (registered === 'true') {
-        setPopupMessage('Already registered!');
-      } else {
-        setPopupMessage('Registration Successful!');
-      }
-      setShowPopup(true);
-      const timer = setTimeout(() => {
-        setShowPopup(false);
-        navigate('/login');
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [searchParams, navigate]);
 
   return (
     <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6 pt-2">
