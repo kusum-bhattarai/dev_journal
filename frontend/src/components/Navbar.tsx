@@ -1,16 +1,39 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../utils/auth'; 
+import Button from './Button';
 
 const Navbar = () => {
-    const location = useLocation();
+  const { token, logout } = useAuth();
+
   return (
-    <nav className="bg-matrix-gray p-4">
-      <ul className="flex space-x-6 text-matrix-green">
-        <li><Link to="/" className={location.pathname === '/' ? 'text-green-500' : 'hover:text-green-500'}>Home</Link></li>
-        <li><Link to="/journal" className={location.pathname === '/journal' ? 'text-green-500' : 'hover:text-green-500'}>Journal</Link></li>
-        <li><Link to="/login" className={location.pathname === '/login' ? 'text-green-500' :"hover:text-green-500"}>Login</Link></li>
-        <li><Link to="/register" className={location.pathname === '/register' ? 'text-green-500' : "hover:text-green-500"}>Register</Link></li>
-      </ul>
+    <nav className="flex justify-between items-center p-4 bg-matrix-gray text-matrix-green border-b border-matrix-green">
+      <div className="text-2xl font-bold animate-pulse">
+        <Link to="/">DevJournal</Link>
+      </div>
+      <div>
+        {token ? (
+          // If a token exists, show Journal and Logout links
+          <>
+            <Link to="/journal" className="mr-4 hover:text-green-300">
+              Journal
+            </Link>
+            <Button onClick={logout}>
+              Logout
+            </Button>
+          </>
+        ) : (
+          // If no token, show Login and Register links
+          <>
+            <Link to="/login" className="mr-4 hover:text-green-300">
+              Login
+            </Link>
+            <Link to="/register" className="hover:text-green-300">
+              Register
+            </Link>
+          </>
+        )}
+      </div>
     </nav>
   );
 };
