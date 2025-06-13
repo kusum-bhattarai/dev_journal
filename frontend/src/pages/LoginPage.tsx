@@ -4,6 +4,7 @@ import Button from '../components/Button';
 import { FaGithub } from 'react-icons/fa';
 import Input from '../components/Input';
 import Navbar from '../components/Navbar';
+import { useAuth } from '../utils/auth'
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -12,6 +13,7 @@ const LoginPage = () => {
   const [searchParams] = useSearchParams();
   const [showPopup, setShowPopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState('');
+  const { login } = useAuth();
 
 
   const handleLogin = async () => {
@@ -22,10 +24,21 @@ const LoginPage = () => {
         body: JSON.stringify({ email, password }),
       });
       const data = await response.json();
-      localStorage.setItem('token', data.token);
-      navigate('/');
-    } catch (error) {
-      console.error('Login failed:', error);
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      login(data.token); 
+      setPopupMessage('Login Successful!');
+      setShowPopup(true);
+
+      setTimeout(()=>{
+        navigate('/');
+      }, 2000);
+    } catch (error: any) {
+      setPopupMessage(error.message);
+      setShowPopup(true);
+      setTimeout(() => setShowPopup(false), 3000);
     }
   };
 

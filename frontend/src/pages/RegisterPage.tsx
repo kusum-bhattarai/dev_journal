@@ -22,10 +22,21 @@ const RegisterPage = () => {
         body: JSON.stringify({ username, email, password }),
       });
       const data = await response.json();
-      localStorage.setItem('token', data.token);
-      navigate('/');
-    } catch (error) {
-      console.error('Registration failed:', error);
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+      setPopupMessage('Registration successful! Please log in.');
+      setShowPopup(true);
+      setTimeout(() => {
+        setShowPopup(false);
+        navigate('/login');
+      }, 3000);
+    } catch (error: any) {
+      setPopupMessage(error.message);
+      setShowPopup(true);
+      setTimeout(() => {
+        navigate('/login'); 
+      }, 2000);
     }
   };
 
