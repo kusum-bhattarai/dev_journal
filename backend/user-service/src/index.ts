@@ -1,9 +1,10 @@
-import express from 'express';
+import express, {Request, Response, RequestHandler} from 'express';
 import { Pool } from 'pg';
 import passport from 'passport';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
+import bcrypt from 'bcryptjs'
 
 interface User {
   user_id: number;
@@ -46,6 +47,76 @@ app.get('/test-db', async (req, res) => {
     res.status(500).json({ error: (err as Error).message });
   }
 });
+
+// Manual User Registration
+app.post('/auth/register', (async (req: Request, res: Response) => {
+  const { username, email, password } = req.body;
+
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  try {
+    // Check if user already exists
+    const userCheck = await pool.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
+    if (userCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'User with this email or username already exists' });
+    }
+
+    // Hash the password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Insert new user into the database
+    const newUser = await pool.query(
+      'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING user_id, username, email',
+      [username, email, hashedPassword]
+    );
+
+    res.status(201).json({ message: 'User registered successfully', user: newUser.rows[0] });
+
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+}) as RequestHandler);
+
+// Manual User Login
+app.post('/auth/login', (async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  try {
+    // Find user by email
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check if the user has a password (they might have registered via GitHub)
+    if (!user.password) {
+        return res.status(401).json({ error: 'You have previously signed in with GitHub. Please use GitHub to log in.' });
+    }
+    
+    // Compare passwords
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+
+    res.json({ token });
+
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+}) as RequestHandler);
 
 // Passport GitHub Strategy
 passport.use(
