@@ -1,43 +1,41 @@
 import React, {useState, useEffect, useCallback } from 'react';
-import Prism from 'prismjs';
 import 'prismjs/themes/prism-dark.css';
-import axios from 'axios';
 import Button from './Button';
 import Input from './Input';
+import { useNavigate } from 'react-router-dom';
+import { createJournalEntry } from '../utils/api';
 
-const JournalEntry = ({userId}: {userId: string}) => {
-    const [content, setContent] = useState('');
-    const [journals, setJournals] = useState([]);
+const JournalEntry: React.FC = () => {
+  const [content, setContent] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
-    const fetchJournals = useCallback(async () => {
-        try {
-            const res = await axios.get(`http://localhost:3002/api/journals/${userId}`,{
-                headers: {Authorization: `Bearer ${localStorage.getItem('token')}`},
-            });
-            setJournals(res.data);
-        } catch (error) {
-            console.error ('Error fetching journals: ', error);
-        }
-    }, [userId]);
+  const handleSubmit = async () => {
+    // Prevent multiple submissions
+    if (isSubmitting) return;
 
-    useEffect(() => {
-        Prism.highlightAll();
-        fetchJournals();
-    }, [fetchJournals]);
+    if (!content.trim()) {
+      setError('Journal entry cannot be empty.');
+      return;
+    }
 
-    const handleSubmit = async () => {
-        try {
-            await axios.post(
-                'http://localhost:3002/api/journals',
-                {userId, content},
-                {headers: {Authorization: `Bearer ${localStorage.getItem('token')}`}}
-            );
-            setContent('');
-            await fetchJournals();
-        } catch(error) {
-            console.error('Error creating journal:', error);
-        }
-    };
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // The token is handled by the axios interceptor in api.ts
+      await createJournalEntry(content);
+      
+      // On success, navigate to the journal page
+      navigate('/journal');
+    } catch (err) {
+      setError('Failed to save entry. Please try again.');
+      console.error(err);
+      setIsSubmitting(false);
+    }
+  };
+
 
     return (
         <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6 flex flex-col items-center">
@@ -49,24 +47,13 @@ const JournalEntry = ({userId}: {userId: string}) => {
                     placeholder="Enter your thoughts..."
                     className='h-48'
                 />
+                {error && <p className="text-red-500 text-center mt-2">{error}</p>}
                 <div className="flex justify-center mt-4">
-                <Button onClick={handleSubmit}>
-                    Commit Entry
+                <Button onClick={handleSubmit} className={isSubmitting ? 'opacity-50' : ''}>
+                    {isSubmitting ? 'Committing...' : 'Commit Entry'}
                 </Button>
                 </div>
             </div>
-            <div className="mt-6">
-                {journals.map((journal: any) => (
-                    <div key={journal.journal_id} className="mb-4 p-4 bg-matrix-gray rounded-lg animate-fadeIn">
-                        <pre>
-                            <code className="language-markdown">{journal.content}</code>
-                        </pre>
-                        <p className="text-sm text-matrix-green">Created: {new Date(journal.created_at).toLocaleString()}</p>
-                    </div>
-                ))}
-            </div>
-
-
         </div>
     );
 };
