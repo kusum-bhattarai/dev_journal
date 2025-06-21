@@ -13,8 +13,8 @@ The project is structured into two main parts:
 ## Features
 
   * **User Authentication:** Secure registration and login for users, including traditional email/password and GitHub OAuth.
-  * **Journal Management:** Create, view, and manage personal journal entries.
-  * **Markdown Support:** (Planned/Future) Render journal entries with Markdown for rich formatting.
+  * **Journal Management:** Create, view, and delete personal journal entries.
+  * **Markdown Support:** (Planned/Future) Render journal entries with Markdown for rich formatting, ability to add code snippets.
   * **Matrix-Inspired UI:** A unique visual theme that enhances the developer journaling experience.
 
 ## Technologies Used
@@ -143,12 +143,12 @@ GITHUB_CLIENT_SECRET="your_github_client_secret"
 
     ```bash
     cd backend/journal-service
-    npm start # Or a similar command as defined in its package.json
+    npm start 
     ```
 
-    The journal service is expected to run on `http://localhost:3002` based on the frontend configuration.
-
-3.  **Start the Frontend:**
+    The journal service will run on `http://localhost:3002`.
+    
+4.  **Start the Frontend:**
 
     ```bash
     cd frontend
@@ -227,19 +227,72 @@ The User Service handles all user-related operations, including registration, lo
 
 ### Journal Service API
 
-The Journal Service will handle the creation, retrieval, updating, and deletion of journal entries. It is expected to run on `http://localhost:3002`.
+The Journal Service will handle the creation, retrieval, and deletion of journal entries. It is expected to run on `http://localhost:3002`.
 
-**Current Status:** This service is the next development step. The following endpoints are planned:
+**Endpoints:**
 
+  * **`GET /api/journals`**
+
+      * **Description:** Retrieves all journal entries for the authenticated user.
+      * **Success Response (200 OK):**
+        ```json
+        [
+            {
+                "journal_id": 1,
+                "user_id": 123,
+                "content": "This is my first journal entry.",
+                "created_at": "2025-06-21T20:30:00.000Z"
+            },
+            {
+                "journal_id": 2,
+                "user_id": 123,
+                "content": "This is another entry.",
+                "created_at": "2025-06-22T10:00:00.000Z"
+            }
+        ]
+        ```
+
+  * **`POST /api/journals`**
+
+      * **Description:** Creates a new journal entry for the authenticated user.
+      * **Request Body (JSON):**
+        ```json
+        {
+            "content": "Today, I fixed a very tricky bug."
+        }
+        ```
+      * **Success Response (201 Created):**
+        ```json
+        {
+            "journal_id": 3,
+            "user_id": 123,
+            "content": "Today, I fixed a very tricky bug.",
+            "created_at": "2025-06-23T14:45:00.000Z"
+        }
+        ```
+
+  * **`DELETE /api/journals/:id`**
+
+      * **Description:** Deletes a specific journal entry by its ID. A user can only delete their own entries.
+      * **URL Parameters:**
+        * `id`: The `journal_id` of the entry to delete.
+      * **Success Response (200 OK):**
+        ```json
+        {
+            "message": "Journal entry deleted successfully"
+        }
+        ```
   
 ## Project Status
 
-The `user-service` and user-related functionalities, including traditional login/registration and GitHub OAuth, and logout are complete. The next major development phase will focus on building out the `journal-service` and integrating it with the frontend.
+The `user-service` and user-related functionalities, including traditional login/registration and GitHub OAuth, and logout are complete. The initial version of the `journal-service` is also complete, with functionality for creating, viewing, and deleting entries. The frontend has been integrated with both services.
 
 ## Future Enhancements
 
   * **Markdown Rendering:** Implement full Markdown rendering for journal entries.
   * **Search Functionality:** Allow users to search through their journal entries.
+  * **Chatting:** Users can search for users and chat with them and share their journal entries and/or collaborate on a journal entry.
   * **Tagging/Categories:** Add functionality to tag or categorize journal entries.
+  * **Testing:** Add adequate testing before deployment.
   * **Deployment:** Set up deployment to a cloud platform.
 
