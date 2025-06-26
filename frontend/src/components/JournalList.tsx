@@ -56,7 +56,7 @@ const JournalList: React.FC = () => {
           journals.map((journal: any) => (
             <div
               key={journal.journal_id}
-              className="mb-4 p-4 bg-matrix-gray rounded-lg animate-fadeIn cursor-pointer hover:bg-matrix-gray-dark"
+              className="group mb-4 p-4 bg-matrix-gray rounded-lg animate-fadeIn cursor-pointer hover:bg-matrix-gray-dark relative"
               onClick={() => setSelectedJournal(journal)}
             >
               <p className="truncate">{journal.content}</p>
