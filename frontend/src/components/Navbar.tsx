@@ -2,7 +2,8 @@ import React, {useState} from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../utils/auth'; 
 import Button from './Button';
-import {BsChatFill} from 'react-icons/bs'
+import {BsChatFill} from 'react-icons/bs';
+import ChatWindow from './ChatWindow';
 
 const Navbar = () => {
   const { token, logout } = useAuth();
@@ -11,7 +12,6 @@ const Navbar = () => {
   const handleChatToggle = () => {
     setIsChatOpen(!isChatOpen);
   };
-
 
   return (
     <nav className="flex justify-between items-center p-4 bg-matrix-gray text-matrix-green border-b border-matrix-green">
@@ -49,6 +49,7 @@ const Navbar = () => {
           </>
         )}
       </div>
+      <ChatWindow isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} />
     </nav>
   );
 };
