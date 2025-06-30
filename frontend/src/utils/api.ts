@@ -35,4 +35,12 @@ export const deleteJournalEntry = async (journalId: number) => {
   return response.data;
 };
 
+export const searchUsers = async (query: string) => {
+  const response = await api.get(`/users?search=${encodeURIComponent(query)}`);
+  return response.data.map((user: any) => ({
+    user_id: user.user_id,
+    username: user.username,
+  })); 
+};
+
 export default api;
