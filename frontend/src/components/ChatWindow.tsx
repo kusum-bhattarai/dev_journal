@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../utils/auth';
 import Input from './Input';
 import Button from './Button';
 import { searchUsers } from '../utils/api';
+import io, { Socket } from 'socket.io-client';
 
 interface User {
   user_id: number;
@@ -20,6 +21,39 @@ const ChatWindow = ({ isChatOpen, setIsChatOpen }: ChatWindowProps) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<User[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+    const socketRef = useRef<Socket | null>(null);
+
+    useEffect(() => {
+        if (!isChatOpen || !token) return;
+
+        // Connect to Socket.IO server
+        socketRef.current = io('http://localhost:3003', {
+            auth: { token }, // Pass JWT token in handshake
+        });
+
+        // Handle connection
+        socketRef.current.on('connect', () => {
+            console.log('ChatWindow: Connected to Socket.IO server');
+        });
+
+        // Handle connection errors
+        socketRef.current.on('connect_error', (error) => {
+            console.error('ChatWindow: Socket connection error:', error.message);
+        });
+
+        // Handle disconnection
+        socketRef.current.on('disconnect', () => {
+            console.log('ChatWindow: Disconnected from Socket.IO server');
+        });
+
+        // Cleanup on unmount or when chat closes
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
+        };
+    }, [isChatOpen, token]); // Re-run if isChatOpen or token changes
 
     useEffect(() => {
         let timeoutId: NodeJS.Timeout;
