@@ -4,7 +4,7 @@ import Input from './Input';
 import Button from './Button';
 import { searchUsers, createConversation } from '../utils/api';
 import io, { Socket } from 'socket.io-client';
-import { User, Conversation } from '../types';
+import { User, Conversation, Message } from '../types';
 
 const ChatWindow = ({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setIsChatOpen: (open: boolean) => void }) => {
     const { token } = useAuth();
@@ -13,6 +13,8 @@ const ChatWindow = ({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setIsC
     const [selectedUser, setSelectedUser] = useState<User | null>(null); 
     const [conversation, setConversation] = useState<Conversation | null>(null);
     const [message, setMessage] = useState('');
+    const [messages, setMessages] = useState<Message[]>([]);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
     const socketRef = useRef<Socket | null>(null);
 
     useEffect(() => {
@@ -38,8 +40,8 @@ const ChatWindow = ({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setIsC
             console.log('ChatWindow: Disconnected from Socket.IO server');
         });
 
-        socketRef.current.on('receiveMessage', (data) => {
-            console.log('Received message:', data); // Placeholder for now
+        socketRef.current.on('receiveMessage', (data, Message) => {
+            setMessages((prev) => [...prev, data]);
         });
 
         // Cleanup on unmount or when chat closes
@@ -70,6 +72,26 @@ const ChatWindow = ({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setIsC
         return () => clearTimeout(timeoutId);
     }, [searchQuery, selectedUser]);
 
+    useEffect(() => {
+        if (conversation && socketRef.current) {
+            socketRef.current.emit('joinRoom', conversation.conversation_id);
+            fetchMessages();
+        }
+    }, [conversation]);
+
+    const fetchMessages = async () => {
+        if (!conversation) return;
+        try {
+            const response = await fetch(`http://localhost:3003/messages/${conversation.conversation_id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await response.json();
+            setMessages(data);
+        } catch (error) {
+            console.error('Failed to fetch messages:', error);
+        }
+    };
+
     const handleUserSelect = async (user: User) => {
         try {
             const tokenData = JSON.parse(atob(token!.split('.')[1])); // Decode JWT to get userId
@@ -98,6 +120,7 @@ const ChatWindow = ({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setIsC
     const handleBackToSearch = () => {
         setSelectedUser(null);
         setConversation(null);
+        setMessages([]);
         setSearchQuery('');
     };
 
@@ -114,6 +137,12 @@ const ChatWindow = ({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setIsC
         }
     };
 
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [messages]);
+
     if (!isChatOpen) return null;
 
     return (
@@ -128,8 +157,14 @@ const ChatWindow = ({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setIsC
                         <h2 className="text-xl flex-1 ml-2">{selectedUser.username}</h2>
                         <button onClick={() => setIsChatOpen(false)} className="px-2 py-1 text-bold">x</button>
                     </div>
-                    <div className="flex-1 overflow-y-auto mb-4 bg-matrix-gray-dark border border-matrix-green rounded p-2">
-                        <p>No messages yet</p> {/* Placeholder for message history */}
+                    <div ref={chatContainerRef} className="flex-1 overflow-y-auto mb-4 bg-matrix-gray-dark border border-matrix-green rounded p-2 space-y-2">
+                        {messages.map((msg) => (
+                            <div key={msg.message_id} className="p-1">
+                                <span>{msg.content}</span>
+                                <span className="text-xs ml-2">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                                <span className="text-xs ml-1">{msg.read_status ? '(Read)' : '(Unread)'}</span>
+                            </div>
+                        ))}
                     </div>
                     <div className="flex gap-2 mb-4">
                         <Input
