@@ -1,4 +1,4 @@
-import express, {Request, Response, NextFunction} from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
@@ -9,6 +9,13 @@ import { socketAuthMiddleware } from './middleware/auth';
 dotenv.config();
 
 const app = express();
+app.use(express.json());
+console.log('Chat Service: express.json middleware registered');
+app.use(cors({
+    origin: 'http://localhost:3000', 
+    credentials: true
+}));
+
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -21,34 +28,24 @@ const io = new Server(server, {
 
 io.use(socketAuthMiddleware);   
 
-// Express middleware
-app.use(cors({
-    origin: 'http://localhost:3000', 
-    credentials: true
-}));
-app.use(express.json());
-
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => 
   (req: Request, res: Response, next: NextFunction) => 
     Promise.resolve(fn(req, res, next)).catch((err: unknown) => {
       const error = err as Error;
       console.error('Chat Service: Error caught:', error.stack || error);
+      res.status(500).json({ error: 'Internal server error', details: error.message });
       next(error);
     });
     
-// Basic health check endpoint
-app.get('/health', asyncHandler(async (req: Request, res: Response) => {
-    try {
-        await db.query('SELECT 1'); 
-        res.status(200).send('Chat service is healthy and connected to DB.');
-    } catch (error) {
-        console.error('Chat Service: DB health check failed:', error);
-        res.status(500).send('Chat service is unhealthy (DB connection error).');
-    }
+app.post('/test-body', asyncHandler(async (req: Request, res: Response) => {
+    console.log('Test endpoint - Received request headers:', req.headers);
+    console.log('Test endpoint - Received request body:', req.body);
+    res.status(200).json({ message: 'Body received', body: req.body });
 }));
 
-// conversation endpoint
 app.post('/conversations', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    console.log('Raw request headers:', req.headers);
+    console.log('Received request body:', req.body);
     const { user1Id, user2Id } = req.body;
     if (!user1Id || !user2Id) {
         return res.status(400).json({ error: 'user1Id and user2Id are required' });
@@ -58,9 +55,15 @@ app.post('/conversations', asyncHandler(async (req: Request, res: Response, next
         return res.status(401).json({ error: 'Authorization token required' });
     }
 
-    await db.query('SELECT 1 FROM users WHERE user_id = $1', [user1Id]); // Validate user1
-    await db.query('SELECT 1 FROM users WHERE user_id = $2', [user2Id]); // Validate user2
-    const [orderedUser1Id, orderedUser2Id] = [user1Id, user2Id].sort((a, b) => a - b);
+    const userCheck = await db.query(
+        'SELECT 1 FROM users WHERE user_id = ANY($1::int[])',
+        [[parseInt(user1Id), parseInt(user2Id)]]
+    );
+    if (userCheck.rows.length !== 2) {
+        return res.status(404).json({ error: 'One or both users not found' });
+    }
+
+    const [orderedUser1Id, orderedUser2Id] = [parseInt(user1Id), parseInt(user2Id)].sort((a, b) => a - b);
     const result = await db.query(
         'INSERT INTO conversations (user1_id, user2_id) VALUES ($1, $2) ON CONFLICT ON CONSTRAINT unique_ordered_conversation_pair DO UPDATE SET last_message_id = EXCLUDED.last_message_id RETURNING conversation_id',
         [orderedUser1Id, orderedUser2Id]
@@ -71,9 +74,26 @@ app.post('/conversations', asyncHandler(async (req: Request, res: Response, next
     res.status(201).json({ conversation_id: result.rows[0].conversation_id });
 }));
 
-// --- Socket.IO Connection Handling ---
+// Message endpoint (placeholder for now)
+app.post('/messages', asyncHandler(async (req: Request, res: Response) => {
+    const { conversationId, senderId, content } = req.body;
+    if (!conversationId || !senderId || !content) {
+        return res.status(400).json({ error: 'conversationId, senderId, and content are required' });
+    }
+    const result = await db.query(
+        'INSERT INTO messages (sender_id, receiver_id, content, conversation_id) VALUES ($1, $2, $3, $4) RETURNING message_id',
+        [parseInt(senderId), -1, content, parseInt(conversationId)] // Placeholder receiver_id, to be updated with Socket.IO
+    );
+    res.status(201).json({ message_id: result.rows[0].message_id });
+}));
+
 io.on('connection', (socket) => {
   console.log(`Chat Service: User ${socket.userId} connected with socket ID: ${socket.id}`);
+
+    socket.on('sendMessage', (data) => {
+      console.log('Received sendMessage:', data);
+      io.emit('receiveMessage', data); // Broadcast to all for now, will refine later
+    });
 
   socket.on('disconnect', () => {
     console.log(`Chat Service: User ${socket.userId} disconnected with socket ID: ${socket.id}`);
@@ -84,6 +104,6 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.CHAT_SERVICE_PORT || 3003;
 server.listen(PORT, () => {
-  console.log(`Chat Service: HTTP/WebSocket server running on port ${PORT}`);
-  console.log(`Chat Service: WebSocket accessible at ws://localhost:${PORT}`);
+    console.log(`Chat Service: HTTP/WebSocket server running on port ${PORT}`);
+    console.log(`Chat Service: WebSocket accessible at ws://localhost:${PORT}`);
 });

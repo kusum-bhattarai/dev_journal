@@ -8,6 +8,11 @@ const journalApi = axios.create({
     baseURL: 'http://localhost:3002/api',
 });
 
+// Chat API instance for chat-service
+const chatApi = axios.create({
+    baseURL: 'http://localhost:3003',
+});
+
 // single interceptor for both instances
 const addAuthToken = (config: any) => {
     const token = localStorage.getItem('token');
@@ -19,6 +24,7 @@ const addAuthToken = (config: any) => {
 
 api.interceptors.request.use(addAuthToken);
 journalApi.interceptors.request.use(addAuthToken);
+chatApi.interceptors.request.use(addAuthToken);
 
 export const getJournalEntries = async () => {
   const response = await journalApi.get('/journals');
@@ -41,6 +47,11 @@ export const searchUsers = async (query: string) => {
     user_id: user.user_id,
     username: user.username,
   })); 
+};
+
+export const createConversation = async (user1Id: number, user2Id: number) => {
+    const response = await chatApi.post('/conversations', { user1Id, user2Id });
+    return response.data;
 };
 
 export default api;
