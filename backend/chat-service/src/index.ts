@@ -3,14 +3,13 @@ import http from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import db from './db'; 
-import { socketAuthMiddleware } from './middleware/auth'; 
+import db from './db';
+import { socketAuthMiddleware } from './middleware/auth';
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
-console.log('Chat Service: express.json middleware registered');
 app.use(cors({
     origin: 'http://localhost:3000', 
     credentials: true
@@ -28,24 +27,70 @@ const io = new Server(server, {
 
 io.use(socketAuthMiddleware);   
 
-const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => 
-  (req: Request, res: Response, next: NextFunction) => 
-    Promise.resolve(fn(req, res, next)).catch((err: unknown) => {
-      const error = err as Error;
-      console.error('Chat Service: Error caught:', error.stack || error);
-      res.status(500).json({ error: 'Internal server error', details: error.message });
-      next(error);
-    });
-    
+const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
+    (req: Request, res: Response, next: NextFunction) =>
+        Promise.resolve(fn(req, res, next)).catch((err: unknown) => {
+            const error = err as Error;
+            console.error('Error:', error.message);
+            res.status(500).json({ error: 'Internal server error', details: error.message });
+            next(error);
+        });
+
+const saveMessage = async (conversationId: number, senderId: number, content: string) => {
+    const conversationResult = await db.query(
+        'SELECT user1_id, user2_id FROM conversations WHERE conversation_id = $1',
+        [conversationId]
+    );
+
+    if (conversationResult.rows.length === 0) {
+        throw new Error('Conversation not found');
+    }
+
+    const { user1_id, user2_id } = conversationResult.rows[0];
+    const receiverId = senderId === user1_id ? user2_id : user2_id === senderId ? user1_id : null;
+
+    if (!receiverId) {
+        throw new Error('Sender not part of conversation');
+    }
+
+    try {
+        const insertMessageResult = await db.query(
+            'INSERT INTO messages (conversation_id, sender_id, receiver_id, content, timestamp, read_status) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, FALSE) RETURNING message_id, timestamp',
+            [conversationId, senderId, receiverId, content]
+        );
+
+        if (insertMessageResult.rowCount === 0) {
+            throw new Error('Failed to save message to database');
+        }
+
+        const savedMessage = {
+            message_id: insertMessageResult.rows[0].message_id,
+            conversation_id: conversationId,
+            sender_id: senderId,
+            receiver_id: receiverId,
+            content,
+            timestamp: insertMessageResult.rows[0].timestamp,
+            read_status: false,
+        };
+
+        await db.query(
+            'UPDATE conversations SET last_message_id = $1 WHERE conversation_id = $2',
+            [savedMessage.message_id, conversationId]
+        );
+
+        console.log(`Message ${savedMessage.message_id} saved`);
+        return savedMessage;
+    } catch (dbError) {
+        console.error('Database error:', (dbError as Error).message);
+        throw dbError;
+    }
+};
+
 app.post('/test-body', asyncHandler(async (req: Request, res: Response) => {
-    console.log('Test endpoint - Received request headers:', req.headers);
-    console.log('Test endpoint - Received request body:', req.body);
     res.status(200).json({ message: 'Body received', body: req.body });
 }));
 
-app.post('/conversations', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    console.log('Raw request headers:', req.headers);
-    console.log('Received request body:', req.body);
+app.post('/conversations', asyncHandler(async (req: Request, res: Response) => {
     const { user1Id, user2Id } = req.body;
     if (!user1Id || !user2Id) {
         return res.status(400).json({ error: 'user1Id and user2Id are required' });
@@ -65,45 +110,103 @@ app.post('/conversations', asyncHandler(async (req: Request, res: Response, next
 
     const [orderedUser1Id, orderedUser2Id] = [parseInt(user1Id), parseInt(user2Id)].sort((a, b) => a - b);
     const result = await db.query(
-        'INSERT INTO conversations (user1_id, user2_id) VALUES ($1, $2) ON CONFLICT ON CONSTRAINT unique_ordered_conversation_pair DO UPDATE SET last_message_id = EXCLUDED.last_message_id RETURNING conversation_id',
+        'INSERT INTO conversations (user1_id, user2_id) VALUES ($1, $2) ON CONFLICT ON CONSTRAINT unique_ordered_conversation_pair DO NOTHING RETURNING conversation_id',
         [orderedUser1Id, orderedUser2Id]
     );
-    if (result.rows.length === 0) {
-        throw new Error('No conversation created or updated');
-    }
-    res.status(201).json({ conversation_id: result.rows[0].conversation_id });
+    const conversationId = result.rows.length > 0 ? result.rows[0].conversation_id : (await db.query(
+        'SELECT conversation_id FROM conversations WHERE user1_id = $1 AND user2_id = $2',
+        [orderedUser1Id, orderedUser2Id]
+    )).rows[0].conversation_id;
+    res.status(201).json({ conversation_id: conversationId });
 }));
 
-// Message endpoint (placeholder for now)
+app.get('/conversations', asyncHandler(async (req: Request, res: Response) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ error: 'Authorization token required' });
+    }
+    const tokenData = JSON.parse(atob(token.split('.')[1]));
+    const userId = tokenData.userId;
+    const result = await db.query(
+        'SELECT conversation_id, user1_id, user2_id, last_message_id FROM conversations WHERE user1_id = $1 OR user2_id = $1',
+        [parseInt(userId)]
+    );
+    res.status(200).json(result.rows);
+}));
+
+app.get('/messages/:conversationId', asyncHandler(async (req: Request, res: Response) => {
+    const { conversationId } = req.params;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ error: 'Authorization token required' });
+    }
+    const tokenData = JSON.parse(atob(token.split('.')[1]));
+    const userId = parseInt(tokenData.userId);
+
+    try {
+        const conversationCheck = await db.query(
+            'SELECT 1 FROM conversations WHERE conversation_id = $1 AND (user1_id = $2 OR user2_id = $2)',
+            [parseInt(conversationId), userId]
+        );
+        if (conversationCheck.rows.length === 0) {
+            return res.status(403).json({ error: 'User not authorized for this conversation' });
+        }
+
+        const result = await db.query(
+            'SELECT message_id, conversation_id, sender_id, receiver_id, content, timestamp, read_status FROM messages WHERE conversation_id = $1 ORDER BY timestamp ASC',
+            [parseInt(conversationId)]
+        );
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error fetching messages:', (error as Error).message);
+        res.status(500).json({ error: 'Failed to fetch messages', details: (error as Error).message });
+    }
+}));
+
 app.post('/messages', asyncHandler(async (req: Request, res: Response) => {
     const { conversationId, senderId, content } = req.body;
     if (!conversationId || !senderId || !content) {
         return res.status(400).json({ error: 'conversationId, senderId, and content are required' });
     }
-    const result = await db.query(
-        'INSERT INTO messages (sender_id, receiver_id, content, conversation_id) VALUES ($1, $2, $3, $4) RETURNING message_id',
-        [parseInt(senderId), -1, content, parseInt(conversationId)] // Placeholder receiver_id, to be updated with Socket.IO
-    );
-    res.status(201).json({ message_id: result.rows[0].message_id });
+
+    try {
+        const message = await saveMessage(parseInt(conversationId), parseInt(senderId), content);
+        io.to(`room_${conversationId}`).emit('receiveMessage', message);
+        res.status(201).json({ message_id: message.message_id });
+    } catch (error) {
+        console.error('Error saving message via HTTP:', (error as Error).message);
+        res.status(500).json({ error: 'Failed to save message', details: (error as Error).message });
+    }
 }));
 
 io.on('connection', (socket) => {
-  console.log(`Chat Service: User ${socket.userId} connected with socket ID: ${socket.id}`);
+    console.log(`User ${socket.userId} connected`);
 
-    socket.on('sendMessage', (data) => {
-      console.log('Received sendMessage:', data);
-      io.emit('receiveMessage', data); // Broadcast to all for now, will refine later
+    socket.on('joinRoom', (conversationId: string) => {
+        socket.join(`room_${conversationId}`);
+        console.log(`User ${socket.userId} joined room_${conversationId}`);
     });
 
-  socket.on('disconnect', () => {
-    console.log(`Chat Service: User ${socket.userId} disconnected with socket ID: ${socket.id}`);
-  });
+    socket.on('sendMessage', async (data: { conversationId: string; senderId: number; content: string }) => {
+        try {
+            if (!data.conversationId || !data.senderId || !data.content) {
+                socket.emit('messageError', { error: 'Missing message data' });
+                return;
+            }
+            const savedMessage = await saveMessage(parseInt(data.conversationId), data.senderId, data.content);
+            io.to(`room_${data.conversationId}`).emit('receiveMessage', savedMessage);
+        } catch (error) {
+            console.error('Error handling sendMessage:', (error as Error).message);
+            socket.emit('messageError', { error: 'Failed to send message', details: (error as Error).message });
+        }
+    });
 
-  // more event listeners to be added later on
+    socket.on('disconnect', () => {
+        console.log(`User ${socket.userId} disconnected`);
+    });
 });
 
 const PORT = process.env.CHAT_SERVICE_PORT || 3003;
 server.listen(PORT, () => {
-    console.log(`Chat Service: HTTP/WebSocket server running on port ${PORT}`);
-    console.log(`Chat Service: WebSocket accessible at ws://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
