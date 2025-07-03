@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Conversation } from '../types';
 
 const api = axios.create({
     baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001',
@@ -51,6 +52,11 @@ export const searchUsers = async (query: string) => {
 
 export const createConversation = async (user1Id: number, user2Id: number) => {
     const response = await chatApi.post('/conversations', { user1Id, user2Id });
+    return response.data;
+};
+
+export const getConversations = async (): Promise<Conversation[]> => {
+    const response = await chatApi.get('/conversations');
     return response.data;
 };
 
