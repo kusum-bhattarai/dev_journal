@@ -143,5 +143,14 @@ app.get(
   }
 );
 
+app.get('/users', async (req, res) => {
+  const { search } = req.query;
+  const result = await pool.query(
+    'SELECT user_id, username, email FROM users WHERE username ILIKE $1 OR email ILIKE $1',
+    [`%${search}%`]
+  );
+  res.json(result.rows);
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
