@@ -165,6 +165,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
 
   if (!isChatOpen) return null;
 
+  // Group messages by date
+  const groupedMessages = messages.reduce((acc, msg) => {
+    const date = new Date(msg.timestamp).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(msg);
+    return acc;
+  }, {} as { [key: string]: Message[] });
+
   return (
     <div className="fixed right-6 top-6 w-96 h-full bg-matrix-gray text-matrix-green font-mono shadow-lg rounded-lg p-4 z-40 mb-4">
       {selectedUser && conversation ? (
@@ -181,12 +189,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
             </button>
           </div>
           <div ref={chatContainerRef} className="flex-1 overflow-y-auto mb-4 bg-matrix-gray-dark border border-matrix-green rounded p-2 space-y-2 h-full">
-            {messages.map((msg) => (
-              <div key={msg.message_id} className="p-1">
-                <span>{msg.content}</span>
-                <span className="text-xs ml-2">{new Date(msg.timestamp).toLocaleTimeString()}</span>
-                <span className="text-xs ml-1">{msg.read_status ? '(Read)' : '(Unread)'}</span>
-              </div>
+            {Object.entries(groupedMessages).map(([date, dateMessages], index) => (
+              <React.Fragment key={index}>
+                <h3 className="text-center text-sm text-matrix-green-light mb-2">{date}</h3>
+                {dateMessages.map((msg) => (
+                  <div key={msg.message_id} className="p-1">
+                    <span>{msg.content}</span>
+                    <span className="text-xs ml-2">{new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                    <span className="text-xs ml-1">{msg.read_status ? '(Read)' : '(Unread)'}</span>
+                  </div>
+                ))}
+              </React.Fragment>
             ))}
           </div>
           <div className="flex gap-2 mb-4">
