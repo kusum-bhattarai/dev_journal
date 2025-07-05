@@ -20,6 +20,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null); // Current user ID
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -51,6 +52,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
 
   useEffect(() => {
     if (!isChatOpen || !token) return;
+
+    // Extract current user ID from token on mount
+    const tokenData = JSON.parse(atob(token.split('.')[1]));
+    setCurrentUserId(tokenData.userId);
 
     fetchConversations();
 
@@ -144,13 +149,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
   };
 
   const handleSendMessage = () => {
-    if (socketRef.current && conversation && message.trim()) {
+    if (socketRef.current && conversation && message.trim() && currentUserId) {
       console.log('handleSendMessage: Sending message', { conversationId: conversation.conversation_id, content: message });
-      const tokenData = JSON.parse(atob(token!.split('.')[1]));
-      const senderId = tokenData.userId;
       socketRef.current.emit('sendMessage', {
         conversationId: conversation.conversation_id,
-        senderId,
+        senderId: currentUserId,
         content: message,
       });
       setMessage('');
@@ -193,10 +196,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
               <React.Fragment key={index}>
                 <h3 className="text-center text-sm text-matrix-green-light mb-2">{date}</h3>
                 {dateMessages.map((msg) => (
-                  <div key={msg.message_id} className="p-1">
-                    <span>{msg.content}</span>
-                    <span className="text-xs ml-2">{new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-                    <span className="text-xs ml-1">{msg.read_status ? '(Read)' : '(Unread)'}</span>
+                  <div key={msg.message_id} className={`flex w-full my-2 ${msg.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[80%] rounded-lg p-3 border shadow-md flex flex-col ${
+                        msg.sender_id === currentUserId
+                          ? 'bg-green-800/50 border-matrix-green rounded-br-none' // Sender's bubble
+                          : 'bg-matrix-gray-light border-gray-600 rounded-bl-none' // Receiver's bubble
+                      }`}
+                    >
+                      <p className="text-left break-words">{msg.content}</p>
+                      <div className="text-right text-xs mt-1 opacity-70">
+                        <span>{new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                        {msg.sender_id === currentUserId && (
+                          <span className="ml-1">{msg.read_status ? '✓✓' : '✓'}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </React.Fragment>
