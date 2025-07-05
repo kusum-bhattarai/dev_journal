@@ -80,6 +80,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
       setMessages((prev) => (Array.isArray(prev) ? [...prev, data] : [data]));
     });
 
+    socketRef.current.on('messageUpdated', (data: { messageIds: number[]; read_status: boolean }) => {
+      console.log('Received messageUpdated event for messages:', data.messageIds);
+      setMessages((prevMessages) =>
+        // Map through existing messages
+        prevMessages.map((msg) =>
+          // If a message's ID is in the updated list, update its read_status
+          data.messageIds.includes(msg.message_id)
+            ? { ...msg, read_status: data.read_status }
+            : msg
+        )
+      );
+    });
+
     socketRef.current.on('messageError', (error) => {
       console.error('Socket: Message error', error);
     });
@@ -138,8 +151,34 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
   };
 
   useEffect(() => {
-    if (conversation) fetchMessages();
-  }, [conversation, fetchMessages]);
+    if (conversation && currentUserId) {
+      // This function now also handles marking messages as read after fetching
+      const loadAndReadMessages = async () => {
+        await fetchMessages(); // Wait for messages to be fetched and set in state
+
+        setTimeout(() => {
+          setMessages(prevMessages => {
+            // Find unread messages where the current user was the receiver
+            const unreadMessageIds = prevMessages
+              .filter(msg => !msg.read_status && msg.receiver_id === currentUserId)
+              .map(msg => msg.message_id);
+
+            // If there are any, and the socket is connected, emit the event
+            if (unreadMessageIds.length > 0 && socketRef.current?.connected) {
+              console.log('Emitting markAsRead for messages:', unreadMessageIds);
+              socketRef.current.emit('markAsRead', {
+                conversationId: conversation.conversation_id,
+                messageIds: unreadMessageIds,
+              });
+            }
+            return prevMessages;
+          });
+        }, 100); 
+      };
+
+      loadAndReadMessages();
+    }
+  }, [conversation, fetchMessages, currentUserId]);
 
   const handleBackToSearch = () => {
     setSelectedUser(null);
@@ -208,7 +247,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
                       <div className="text-right text-xs mt-1 opacity-70">
                         <span>{new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                         {msg.sender_id === currentUserId && (
-                          <span className="ml-1">{msg.read_status ? '✓✓' : '✓'}</span>
+                          <span className="text-xs ml-1 opacity-80">{msg.read_status ? '✓✓' : '✓'}</span>
                         )}
                       </div>
                     </div>

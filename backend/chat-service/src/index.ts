@@ -201,6 +201,37 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('markAsRead', async (data: { conversationId: string; messageIds: number[] }) => {
+        try {
+            const { conversationId, messageIds } = data;
+            if (!conversationId || !messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
+                socket.emit('messageError', { error: 'Invalid markAsRead data' });
+                return;
+            }
+
+            const userId = socket.userId;
+            const conversationCheck = await db.query(
+                'SELECT 1 FROM conversations WHERE conversation_id = $1 AND (user1_id = $2 OR user2_id = $2)',
+                [parseInt(conversationId), userId]
+            );
+            if (conversationCheck.rows.length === 0) {
+                socket.emit('messageError', { error: 'User not authorized for this conversation' });
+                return;
+            }
+
+            await db.query(
+                'UPDATE messages SET read_status = TRUE WHERE conversation_id = $1 AND message_id = ANY($2::int[]) AND receiver_id = $3',
+                [parseInt(conversationId), messageIds, userId]
+            );
+
+            io.to(`room_${conversationId}`).emit('messageUpdated', { messageIds, read_status: true });
+            console.log(`Marked messages ${messageIds.join(', ')} as read in conversation ${conversationId}`);
+        } catch (error) {
+            console.error('Error handling markAsRead:', (error as Error).message);
+            socket.emit('messageError', { error: 'Failed to mark messages as read', details: (error as Error).message });
+        }
+    });
+
     socket.on('disconnect', () => {
         console.log(`User ${socket.userId} disconnected`);
     });
