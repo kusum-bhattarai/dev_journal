@@ -126,11 +126,32 @@ app.get('/conversations', asyncHandler(async (req: Request, res: Response) => {
         return res.status(401).json({ error: 'Authorization token required' });
     }
     const tokenData = JSON.parse(atob(token.split('.')[1]));
-    const userId = tokenData.userId;
-    const result = await db.query(
-        'SELECT conversation_id, user1_id, user2_id, last_message_id FROM conversations WHERE user1_id = $1 OR user2_id = $1',
-        [parseInt(userId)]
-    );
+    const userId = parseInt(tokenData.userId, 10);
+
+    const query = `
+        SELECT
+            c.conversation_id,
+            c.user1_id,
+            c.user2_id,
+            u.user_id as other_user_id,
+            u.username as other_username,
+            m.content as last_message_content,
+            m.timestamp as last_message_timestamp,
+            m.read_status,
+            m.sender_id as last_message_sender_id
+        FROM
+            conversations c
+        JOIN
+            users u ON u.user_id = (CASE WHEN c.user1_id = $1 THEN c.user2_id ELSE c.user1_id END)
+        LEFT JOIN
+            messages m ON m.message_id = c.last_message_id
+        WHERE
+            c.user1_id = $1 OR c.user2_id = $1
+        ORDER BY
+            m.timestamp DESC NULLS LAST;
+    `;
+
+    const result = await db.query(query, [userId]);
     res.status(200).json(result.rows);
 }));
 
