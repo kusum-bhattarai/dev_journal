@@ -150,6 +150,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
     }
   };
 
+  const handleConversationSelect = (conv: Conversation) => {
+    // We need the other user's info to display in the chat header
+    if (!conv.other_user_id || !conv.other_username) {
+      console.error("Conversation item is missing other user's data", conv);
+      return;
+    }
+
+    // Create a minimal User object for the chat header
+    const userToChatWith: User = {
+      user_id: conv.other_user_id,
+      username: conv.other_username,
+      email: '', // Not needed for this view
+    };
+
+    setSelectedUser(userToChatWith);
+    setConversation(conv); // Set the full conversation object
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
   useEffect(() => {
     if (conversation && currentUserId) {
       // This function now also handles marking messages as read after fetching
@@ -280,23 +300,60 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
             placeholder="Search users..."
             className="mb-4 w-full border border-matrix-green rounded p-2"
           />
-          {searchResults.length > 0 && (
-            <ul className="bg-matrix-gray-dark border border-matrix-green rounded mt-1 max-h-40 overflow-y-auto">
-              {searchResults.map((user, index) => (
-                <li
-                  key={user.user_id}
-                  className={`p-2 cursor-pointer hover:bg-matrix-gray-dark ${index < searchResults.length - 1 ? 'border-b border-matrix-green' : ''}`}
-                  onClick={() => handleUserSelect(user)}
-                >
-                  <span className="truncate" title={user.username}>
-                    {user.username.length > 15 ? user.username.slice(0, 12) + '...' : user.username}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="flex-1 overflow-y-auto">
-            <p>Search for a user to start chatting</p>
+          <div className="flex-1 overflow-y-auto mt-4">
+            {/* If there are search results, show them*/}
+            {searchResults.length > 0 ? (
+              <div className="p-px bg-gradient-to-b from-matrix-green/40 to-matrix-gray-dark/10 rounded-lg">
+                <div className="bg-matrix-gray-dark rounded-lg">
+                  {searchResults.map((user, index) => (
+                    <div
+                      key={user.user_id}
+                      className={`p-3 cursor-pointer hover:bg-matrix-gray transition-colors duration-200 ${
+                        index < searchResults.length - 1 ? 'border-b border-matrix-green-dark' : ''
+                      }`}
+                      onClick={() => handleUserSelect(user)}
+                    >
+                      <span className="truncate" title={user.username}>
+                        {user.username}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Otherwise, show the conversation list*/
+              <div>
+                {conversations.length > 0 ? (
+                  <div className="p-px bg-gradient-to-b from-matrix-green/40 to-matrix-gray-dark/10 rounded-lg">
+                    <div className="bg-matrix-gray-dark rounded-lg">
+                      {conversations.map((conv, index) => {
+                        const isUnread = !conv.read_status && conv.last_message_sender_id !== currentUserId;
+                        return (
+                          <div
+                            key={conv.conversation_id}
+                            className={index < conversations.length - 1 ? 'border-b border-matrix-green-dark' : ''}
+                          >
+                            <div
+                              className="p-3 cursor-pointer hover:bg-matrix-gray transition-colors duration-200"
+                              onClick={() => handleConversationSelect(conv)}
+                            >
+                              <p className={`font-bold truncate ${isUnread ? 'text-matrix-green' : 'text-matrix-green/70'}`}>
+                                {conv.other_username || 'Unknown User'}
+                              </p>
+                              <p className={`text-sm truncate ${isUnread ? 'text-matrix-green/90' : 'text-matrix-green/60'}`}>
+                                {conv.last_message_content || 'No messages yet'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-center p-4 text-matrix-green/50">No recent conversations.</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
