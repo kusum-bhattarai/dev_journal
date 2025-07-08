@@ -8,6 +8,7 @@ module.exports = {
         'matrix-green': '#008F11',
         'matrix-black': '#000000',
         'matrix-gray': '#1a1a1a',
+        'matrix-green-dark': '#004208',
       },
       spacing: {
         '128': '32rem',
