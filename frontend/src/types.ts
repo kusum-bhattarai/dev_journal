@@ -10,6 +10,12 @@ export interface Conversation {
     user2_id: number;
     last_message_id?: number;
     created_at: string;
+    other_user_id?: number;
+    other_username?: string;
+    last_message_content?: string;
+    last_message_timestamp?: string;
+    read_status?: boolean;
+    last_message_sender_id?: number;
 }
 
 export interface Message {
