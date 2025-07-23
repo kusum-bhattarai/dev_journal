@@ -2,297 +2,81 @@
 
 ## Project Overview
 
-DevJournal is a personal journaling application designed specifically for developers. Inspired by the aesthetic and thematic elements of "The Matrix," it provides a minimalist yet functional interface for logging daily coding thoughts, progress, challenges, and solutions. This application aims to help developers reflect on their journey, track their learning, and maintain a consistent record of their professional growth. My vision is to develop something that would be an amalgamation of Notion and Slack where you can dump your thoughts like in Notion while being able to chat with your friends and share those thoughts as in Slack.
+DevJournal is a personal journaling application designed for developers, blending the aesthetic of "The Matrix" with functional features for logging coding thoughts, progress, and solutions. It combines private note-taking with a real-time chat system, allowing users to record journal entries and communicate with others. The application is built on a microservice architecture.
 
-The project is structured into two main parts:
+-   **User Service**: Manages user authentication, registration, and GitHub OAuth.
+-   **Journal Service**: Handles creation, retrieval, and deletion of journal entries.
+-   **Chat Service**: Enables real-time messaging between users.
 
-  * **Backend:** Handles user authentication, journal entry management, and data storage. It's built with Node.js and Express, using PostgreSQL as the database.
-  * **Frontend:** A responsive web application built with React, providing an intuitive interface for users to log in, register, create, view, and manage their journal entries.
+## Core Features
 
+-   **Secure User Authentication**: Provides two paths for users:
+    -   **Manual**: Standard email/password registration and login with password hashing using `bcryptjs`.
+    -   **GitHub OAuth**: Separate flows for registering or logging in with a GitHub account.
+-   **Journal Management**:
+    -   Users can create new journal entries on the home page.
+    -   View a list of all past entries, sorted by creation date.
+    -   Delete entries directly from the list.
+    -   Clicking an entry opens a modal to display the full content.
+-   **Markdown Highlighting**: Journal entries are rendered in a modal with Markdown syntax highlighting, powered by Prism.js.
+-   **Real-Time Chat**:
+    -   Search for users to start new conversations.
+    -   View a list of existing conversations.
+    -   Send and receive messages in real-time.
+    -   See message timestamps and read-status indicators.
+-   **Matrix-Inspired UI**: A visually distinctive interface tailored for developers.
 
-## Features
+## Project Architecture & Documentation
 
-  * **User Authentication:** Secure registration and login for users, including traditional email/password and GitHub OAuth.
-  * **Journal Management:** Create, view, and delete personal journal entries.
-  * **Markdown Support:** (Planned/Future) Render journal entries with Markdown for rich formatting, ability to add code snippets.
-  * **Matrix-Inspired UI:** A unique visual theme that enhances the developer journaling experience.
+This project is divided into multiple services. For detailed technical information, please refer to the documentation below:
+
+* **[Authentication Flow](./docs/AUTHENTICATION.md)**: Explains the JWT and WebSocket authentication strategies.
+* **[API Documentation](./docs/API_DOCUMENTATION.md)**: Details the REST endpoints for each microservice.
+* **[Chat Service Internals](./docs/CHAT_SERVICE.md)**: A deep dive into the WebSocket events and real-time architecture.
 
 ## Technologies Used
 
 ### Backend
-
-  * **Node.js**: JavaScript runtime environment.
-  * **Express**: Web application framework.
-  * **PostgreSQL**: Relational database.
-  * **bcryptjs**: For password hashing.
-  * **jsonwebtoken**: For JWT-based authentication.
-  * **passport & passport-github2**: For GitHub OAuth integration.
-  * **cors**: Middleware for enabling Cross-Origin Resource Sharing.
-  * **dotenv**: For managing environment variables.
+-   **Node.js & Express**: Web application framework and runtime.
+-   **PostgreSQL**: Relational database, connected via a connection pool.
+-   **Socket.IO**: Real-time WebSocket communication.
+-   **jsonwebtoken**: JWT-based authentication.
+-   **passport & passport-github2**: GitHub OAuth integration.
+-   **bcryptjs**: Password hashing.
 
 ### Frontend
-
-  * **React**: JavaScript library for building user interfaces.
-  * **TypeScript**: Typed superset of JavaScript.
-  * **Tailwind CSS**: Utility-first CSS framework for styling.
-  * **React Router DOM**: For declarative routing.
-  * **axios**: Promise-based HTTP client for the browser and Node.js.
-  * **react-icons**: For popular iconography.
-  * **Prism.js**: For syntax highlighting of code snippets in journal entries.
+-   **React & TypeScript**: For building typed, component-based user interfaces.
+-   **Tailwind CSS**: Utility-first CSS framework.
+-   **React Router DOM**: Declarative routing.
+-   **Prism.js**: Syntax highlighting for code snippets in journal entries.
+-   **axios**: HTTP client for API calls.
 
 ## Getting Started
 
-Follow these instructions to get a copy of the project up and running on your local machine for development and testing purposes.
-
 ### Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-  * Node.js (LTS version recommended)
-  * npm (Node Package Manager, usually comes with Node.js)
-  * PostgreSQL
+-   Node.js (LTS version)
+-   npm
+-   PostgreSQL
 
 ### Installation
-
-1.  **Clone the repository:**
-
+1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/kusum-bhattarai/dev_journal.git
+    git clone [https://github.com/kusum-bhattarai/dev_journal.git](https://github.com/kusum-bhattarai/dev_journal.git)
     cd dev_journal
     ```
-
-2.  **Install backend dependencies:**
-
+2.  **Install backend dependencies**:
     ```bash
     cd backend/user-service
     npm install
     cd ../journal-service
     npm install
-    cd ../.. # Go back to root
+    cd ../chat-service
+    npm install
+    cd ../..
     ```
-
-3.  **Install frontend dependencies:**
-
+3.  **Install frontend dependencies**:
     ```bash
     cd frontend
     npm install
-    cd .. # Go back to root
+    cd ..
     ```
-
-### Environment Variables
-
-Create a `.env` file in the `backend/user-service` directory with the following content:
-
-```
-DATABASE_URL="postgresql://your_username:your_password@localhost:5432/your_database_name"
-JWT_SECRET="your_jwt_secret_key"
-GITHUB_CLIENT_ID="your_github_client_id"
-GITHUB_CLIENT_SECRET="your_github_client_secret"
-```
-
-  * Replace `your_username`, `your_password`, and `your_database_name` with your PostgreSQL credentials.
-  * `your_jwt_secret_key` should be a strong, random string.
-  * `your_github_client_id` and `your_github_client_secret` are obtained by registering a new OAuth application on GitHub. Set the callback URL for GitHub OAuth to `http://localhost:3001/auth/github/callback`.
-
-### Database Setup
-
-1.  **Connect to your PostgreSQL database:**
-
-    ```sql
-    CREATE DATABASE your_database_name;
-    \c your_database_name
-    ```
-
-2.  **Create the `users` table:**
-
-    ```sql
-    CREATE TABLE users (
-        user_id SERIAL PRIMARY KEY,
-        github_id VARCHAR(255) UNIQUE,
-        username VARCHAR(255) UNIQUE NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-    ```
-
-3.  **Create the `journals` table (for Journal Service):**
-
-    ```sql
-    CREATE TABLE journals (
-        journal_id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-        content TEXT NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-    ```
-
-### Running the Application
-
-1.  **Start the User Service (Backend):**
-
-    ```bash
-    cd backend/user-service
-    npm start # This will run src/index.ts using ts-node
-    ```
-
-    The user service will run on `http://localhost:3001`.
-
-2.  **Start the Journal Service (Backend):**
-    (This service is currently under development. You would typically run it similarly to the user service once it's set up.)
-
-    ```bash
-    cd backend/journal-service
-    npm start 
-    ```
-
-    The journal service will run on `http://localhost:3002`.
-    
-4.  **Start the Frontend:**
-
-    ```bash
-    cd frontend
-    npm start
-    ```
-
-    The frontend application will open in your browser at `http://localhost:3000`.
-
-## API Documentation
-
-### User Service API
-
-The User Service handles all user-related operations, including registration, login, and GitHub OAuth. It runs on `http://localhost:3001`.
-
-**Endpoints:**
-
-  * **`POST /auth/register`**
-
-      * **Description:** Registers a new user with a username, email, and password.
-      * **Request Body (JSON):**
-        ```json
-        {
-            "username": "yourusername",
-            "email": "your_email@example.com",
-            "password": "your_password"
-        }
-        ```
-      * **Success Response (201 Created):**
-        ```json
-        {
-            "message": "User registered successfully",
-            "user": {
-                "user_id": 1,
-                "username": "yourusername",
-                "email": "your_email@example.com"
-            }
-        }
-        ```
-      * **Error Responses:**
-          * `400 Bad Request`: If any required field is missing.
-          * `409 Conflict`: If a user with the provided email or username already exists.
-          * `500 Internal Server Error`: For other server-side errors.
-
-  * **`POST /auth/login`**
-
-      * **Description:** Logs in an existing user with email and password.
-      * **Request Body (JSON):**
-        ```json
-        {
-            "email": "your_email@example.com",
-            "password": "your_password"
-        }
-        ```
-      * **Success Response (200 OK):**
-        ```json
-        {
-            "token": "your_json_web_token"
-        }
-        ```
-      * **Error Responses:**
-          * `400 Bad Request`: If email or password is missing.
-          * `401 Unauthorized`: If credentials are invalid.
-          * `500 Internal Server Error`: For other server-side errors.
-
-  * **`GET /auth/github`**
-
-      * **Description:** Initiates the GitHub OAuth flow. Redirects to GitHub for authentication.
-      * **Query Parameters:**
-          * `state`: (Optional) Can be `login` or `register` to indicate the desired action after GitHub authentication.
-      * **Redirects to:** GitHub authorization page.
-
-  * **`GET /auth/github/callback`**
-
-      * **Description:** GitHub OAuth callback URL. Handles the response from GitHub.
-      * **Redirects to:** Frontend (`http://localhost:3000`) with a `token` (for successful login) or `status` (for registration success/failure or already registered cases) query parameter.
-
-### Journal Service API
-
-The Journal Service will handle the creation, retrieval, and deletion of journal entries. It is expected to run on `http://localhost:3002`.
-
-**Endpoints:**
-
-  * **`GET /api/journals`**
-
-      * **Description:** Retrieves all journal entries for the authenticated user.
-      * **Success Response (200 OK):**
-        ```json
-        [
-            {
-                "journal_id": 1,
-                "user_id": 123,
-                "content": "This is my first journal entry.",
-                "created_at": "2025-06-21T20:30:00.000Z"
-            },
-            {
-                "journal_id": 2,
-                "user_id": 123,
-                "content": "This is another entry.",
-                "created_at": "2025-06-22T10:00:00.000Z"
-            }
-        ]
-        ```
-
-  * **`POST /api/journals`**
-
-      * **Description:** Creates a new journal entry for the authenticated user.
-      * **Request Body (JSON):**
-        ```json
-        {
-            "content": "Today, I fixed a very tricky bug."
-        }
-        ```
-      * **Success Response (201 Created):**
-        ```json
-        {
-            "journal_id": 3,
-            "user_id": 123,
-            "content": "Today, I fixed a very tricky bug.",
-            "created_at": "2025-06-23T14:45:00.000Z"
-        }
-        ```
-
-  * **`DELETE /api/journals/:id`**
-
-      * **Description:** Deletes a specific journal entry by its ID. A user can only delete their own entries.
-      * **URL Parameters:**
-        * `id`: The `journal_id` of the entry to delete.
-      * **Success Response (200 OK):**
-        ```json
-        {
-            "message": "Journal entry deleted successfully"
-        }
-        ```
-  
-## Project Status
-
-The `user-service` and user-related functionalities, including traditional login/registration and GitHub OAuth, and logout are complete. The initial version of the `journal-service` is also complete, with functionality for creating, viewing, and deleting entries. The frontend has been integrated with both services.
-
-## Future Enhancements
-
-  * **Markdown Rendering:** Implement full Markdown rendering for journal entries.
-  * **Search Functionality:** Allow users to search through their journal entries.
-  * **Chatting:** Users can search for users and chat with them and share their journal entries and/or collaborate on a journal entry.
-  * **Tagging/Categories:** Add functionality to tag or categorize journal entries.
-  * **Testing:** Add adequate testing before deployment.
-  * **Deployment:** Set up deployment to a cloud platform.
-
