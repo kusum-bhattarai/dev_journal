@@ -18,5 +18,11 @@
     "passport-github2": "^0.1.12",
     "pg": "^8.16.0",
     "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.1.1",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.1"
   }
 }
