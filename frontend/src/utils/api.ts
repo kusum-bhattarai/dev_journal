@@ -61,3 +61,4 @@ export const getConversations = async (): Promise<Conversation[]> => {
 };
 
 export default api;
+export { addAuthToken };
