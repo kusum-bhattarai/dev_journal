@@ -25,9 +25,7 @@ const App = () => {
         description: 'Welcome to your DevJournal.',
       });
       login(tokenFromUrl);
-      // Clean the token from the URL
-      searchParams.delete('token');
-      setSearchParams(searchParams, { replace: true });
+      navigate('/', { replace: true }); 
     }
     
     // Handle GitHub status messages
@@ -50,11 +48,10 @@ const App = () => {
           description: message,
         });
       }
-      // Clean the status from the URL
-      searchParams.delete('status');
-      setSearchParams(searchParams, { replace: true });
+      // Clean the status from the URL and navigate to login
+      navigate('/login', { replace: true });
     }
-  }, [searchParams, login, toast, navigate, setSearchParams]);
+  }, [searchParams, login, toast, navigate]);
 
   const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     if (!token) {
