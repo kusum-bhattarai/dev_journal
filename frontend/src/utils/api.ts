@@ -1,3 +1,4 @@
+// api.ts (updated)
 import axios from 'axios';
 import { Conversation } from '../types';
 
@@ -32,8 +33,18 @@ export const getJournalEntries = async () => {
   return response.data;
 };
 
+export const getJournalEntry = async (journalId: number) => {
+  const response = await journalApi.get(`/journals/${journalId}`);
+  return response.data;
+};
+
 export const createJournalEntry = async (content: string) => {
   const response = await journalApi.post('/journals', { content });
+  return response.data;
+};
+
+export const updateJournalEntry = async (journalId: number, content: string) => {
+  const response = await journalApi.put(`/journals/${journalId}`, { content });
   return response.data;
 };
 
