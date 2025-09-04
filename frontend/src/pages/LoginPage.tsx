@@ -16,6 +16,32 @@ const LoginPage = () => {
 
   const handleLogin = async () => {
     try {
+      // client-side validation 
+      if (!email || !password) {
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Email and password are required.',
+        });
+        return; // Prevent submission
+      }
+      if (!/\S+@\S+\.\S+/.test(email)) { // Basic email regex
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Please enter a valid email address.',
+        });
+        return;
+      }
+      if (password.length < 8) {
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Password must be at least 8 characters long.',
+        });
+        return;
+      }
+      
       const response = await fetch('http://localhost:3001/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
