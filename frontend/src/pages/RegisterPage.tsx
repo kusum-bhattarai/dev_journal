@@ -15,6 +15,39 @@ const RegisterPage = () => {
 
   const handleRegister = async () => {
     try {
+      // Add client-side validation here
+      if (!username || !email || !password) {
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Username, email, and password are required.',
+        });
+        return; // Prevent submission
+      }
+      if (username.length < 3) {
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Username must be at least 3 characters long.',
+        });
+        return;
+      }
+      if (!/\S+@\S+\.\S+/.test(email)) { // Basic email regex
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Please enter a valid email address.',
+        });
+        return;
+      }
+      if (password.length < 8) {
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Password must be at least 8 characters long.',
+        });
+        return;
+      }
       const response = await fetch('http://localhost:3001/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
