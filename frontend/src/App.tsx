@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import JournalList from './components/JournalList';
+import JournalDetail from './pages/JournalDetail';
 import Home from './pages/Home';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -65,6 +66,7 @@ const App = () => {
       <Routes>
         <Route path="/journal" element={<ProtectedRoute><JournalList/></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+        <Route path="/journal/:id" element={<JournalDetail />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
       </Routes>
