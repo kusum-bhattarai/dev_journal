@@ -1,4 +1,3 @@
-// api.ts (updated)
 import axios from 'axios';
 import { Conversation } from '../types';
 
@@ -33,8 +32,10 @@ export const getJournalEntries = async () => {
   return response.data;
 };
 
-export const getJournalEntry = async (journalId: number) => {
-  const response = await journalApi.get(`/journals/${journalId}`);
+export const getJournalEntry = async (id: number) => {
+  const response = await journalApi.get(`/journals/${id}`, {
+    headers: { 'Cache-Control': 'no-cache' }
+  });
   return response.data;
 };
 
@@ -43,8 +44,8 @@ export const createJournalEntry = async (content: string) => {
   return response.data;
 };
 
-export const updateJournalEntry = async (journalId: number, content: string) => {
-  const response = await journalApi.put(`/journals/${journalId}`, { content });
+export const updateJournalEntry = async (id: number, content: string) => {
+  const response = await journalApi.put(`/journals/${id}`, { content });
   return response.data;
 };
 
