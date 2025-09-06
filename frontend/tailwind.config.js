@@ -41,5 +41,6 @@ module.exports = {
   },
   plugins: [
     require("tailwindcss-animate"), 
+    require('@tailwindcss/typography'), // Added for prose styling
   ],
 };
