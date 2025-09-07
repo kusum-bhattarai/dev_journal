@@ -72,5 +72,14 @@ export const getConversations = async (): Promise<Conversation[]> => {
     return response.data;
 };
 
+export const getMessages = async (conversationId: number, page = 1) => {
+  const response = await fetch(`http://localhost:3003/messages/${conversationId}?page=${page}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+  });
+  if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+};
+
 export default api;
 export { addAuthToken };

@@ -164,6 +164,10 @@ app.get('/messages/:conversationId', asyncHandler(async (req: Request, res: Resp
     const tokenData = JSON.parse(atob(token.split('.')[1]));
     const userId = parseInt(tokenData.userId);
 
+    const page = parseInt(req.query.page as string, 10) || 1; // Added pagination
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
     try {
         const conversationCheck = await db.query(
             'SELECT 1 FROM conversations WHERE conversation_id = $1 AND (user1_id = $2 OR user2_id = $2)',
@@ -174,8 +178,8 @@ app.get('/messages/:conversationId', asyncHandler(async (req: Request, res: Resp
         }
 
         const result = await db.query(
-            'SELECT message_id, conversation_id, sender_id, receiver_id, content, timestamp, read_status FROM messages WHERE conversation_id = $1 ORDER BY timestamp ASC',
-            [parseInt(conversationId)]
+            'SELECT * FROM messages WHERE conversation_id = $1 ORDER BY timestamp DESC LIMIT $2 OFFSET $3', // Changed to DESC for latest first
+            [parseInt(conversationId), limit, offset]
         );
         res.status(200).json(result.rows);
     } catch (error) {
