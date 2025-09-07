@@ -137,7 +137,7 @@ app.get(
       
       // If login was successful, generate a token and redirect to the frontend with it
       const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
-      res.redirect(`http://localhost:3000/?token=${token}`);
+      res.redirect(`http://localhost:3000/auth/callback?token=${token}`);
 
     })(req, res, next);
   }
