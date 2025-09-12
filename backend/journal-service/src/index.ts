@@ -17,10 +17,16 @@ app.use(express.json());
 app.get('/api/journals', authMiddleware, async (req, res) => {
   const userId = res.locals.user?.id;
   try {
-    const { rows } = await db.query(
-      'SELECT * FROM journal_entries WHERE user_id = $1 ORDER BY created_at DESC',
-      [userId]
-    );
+    // This query now fetches journals where the user is the owner OR a collaborator.
+    // It uses a LEFT JOIN to check the collaborators table.
+    const query = `
+      SELECT DISTINCT je.*
+      FROM journal_entries je
+      LEFT JOIN journal_collaborators jc ON je.journal_id = jc.journal_id
+      WHERE je.user_id = $1 OR jc.user_id = $1
+      ORDER BY je.created_at DESC
+    `;
+    const { rows } = await db.query(query, [userId]);
     res.status(200).json(rows);
   } catch (error) {
     console.error('Error fetching journal entries:', error);
@@ -50,6 +56,7 @@ app.delete('/api/journals/:id', authMiddleware, async (req, res) => {
   const userId = res.locals.user?.id;
   const journalId = parseInt(req.params.id, 10);
   try {
+    // Collaborators cannot delete journals.
     const result = await db.query(
       'DELETE FROM journal_entries WHERE journal_id = $1 AND user_id = $2 RETURNING *',
       [journalId, userId]
@@ -64,15 +71,26 @@ app.delete('/api/journals/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// GET single journal entry
+// GET single journal entry (Owner or Collaborator)
 app.get('/api/journals/:id', authMiddleware, async (req, res) => {
   const userId = res.locals.user?.id;
   const journalId = parseInt(req.params.id, 10);
   try {
-    const { rows } = await db.query(
-      'SELECT * FROM journal_entries WHERE journal_id = $1 AND user_id = $2',
-      [journalId, userId]
-    );
+    // This query now checks if the user is the owner OR a collaborator.
+    // It also returns the user's permission level for this specific journal.
+    // The frontend will use this 'permission' field to determine if the textarea should be editable.
+    const query = `
+      SELECT
+        je.*,
+        CASE
+          WHEN je.user_id = $1 THEN 'editor'::permission_level -- The owner is always an editor
+          ELSE jc.permission
+        END AS permission
+      FROM journal_entries je
+      LEFT JOIN journal_collaborators jc ON je.journal_id = jc.journal_id
+      WHERE je.journal_id = $2 AND (je.user_id = $1 OR jc.user_id = $1)
+    `;
+    const { rows } = await db.query(query, [userId, journalId]);
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Journal entry not found or user not authorized' });
     }
@@ -83,7 +101,7 @@ app.get('/api/journals/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// PUT update journal entry
+// PUT update journal entry (Owner or Collaborator)
 app.put('/api/journals/:id', authMiddleware, async (req, res) => {
   const userId = res.locals.user?.id;
   const journalId = parseInt(req.params.id, 10);
@@ -92,12 +110,26 @@ app.put('/api/journals/:id', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Content cannot be empty' });
   }
   try {
-    const { rows } = await db.query(
-      'UPDATE journal_entries SET content = $1 WHERE journal_id = $2 AND user_id = $3 RETURNING *',
-      [content, journalId, userId]
-    );
+    // Before updating, we perform a subquery to check the user's permission.
+    // The update will only proceed if the user is the owner OR an 'editor' in the collaborators table.
+    const query = `
+      UPDATE journal_entries
+      SET content = $1
+      WHERE journal_id = $2
+      AND (
+        user_id = $3
+        OR
+        EXISTS (
+          SELECT 1 FROM journal_collaborators
+          WHERE journal_id = $2 AND user_id = $3 AND permission = 'editor'
+        )
+      )
+      RETURNING *
+    `;
+    const { rows } = await db.query(query, [content, journalId, userId]);
+
     if (rows.length === 0) {
-      return res.status(404).json({ message: 'Journal entry not found or user not authorized' });
+      return res.status(404).json({ message: 'Journal entry not found or user not authorized to edit' });
     }
     res.status(200).json(rows[0]);
   } catch (error) {
