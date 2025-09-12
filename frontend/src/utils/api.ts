@@ -54,6 +54,16 @@ export const deleteJournalEntry = async (journalId: number) => {
   return response.data;
 };
 
+//new share function
+export const shareJournalEntry = async (journalId: number, collaboratorId: number, permission: 'viewer' | 'editor') => {
+  const response = await journalApi.post(`/journals/${journalId}/share`, {
+    collaboratorId,
+    permission,
+  });
+  return response.data;
+};
+
+
 export const searchUsers = async (query: string) => {
   const response = await api.get(`/users?search=${encodeURIComponent(query)}`);
   return response.data.map((user: any) => ({
