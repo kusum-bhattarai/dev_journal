@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import db from './db';
 import { authMiddleware } from './middleware/auth';
+import axios from 'axios'; // Import axios
 
 dotenv.config();
 
@@ -17,8 +18,6 @@ app.use(express.json());
 app.get('/api/journals', authMiddleware, async (req, res) => {
   const userId = res.locals.user?.id;
   try {
-    // This query now fetches journals where the user is the owner OR a collaborator.
-    // It uses a LEFT JOIN to check the collaborators table.
     const query = `
       SELECT DISTINCT je.*
       FROM journal_entries je
@@ -49,6 +48,75 @@ app.post('/api/journals', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Error creating journal entry:', error);
     res.status(500).json({ message: 'Server error creating journal entry' });
+  }
+});
+
+app.post('/api/journals/:id/share', authMiddleware, async (req, res) => {
+  const owner = res.locals.user;
+  const journalId = parseInt(req.params.id, 10);
+  const { collaboratorId, permission } = req.body;
+
+  if (!collaboratorId || !permission) {
+    return res.status(400).json({ message: 'collaboratorId and permission are required' });
+  }
+  if (!['viewer', 'editor'].includes(permission)) {
+    return res.status(400).json({ message: 'Invalid permission level' });
+  }
+
+  try {
+    const journalCheck = await db.query(
+      'SELECT user_id, (SELECT username FROM users WHERE user_id = je.user_id) as owner_username FROM journal_entries je WHERE journal_id = $1',
+      [journalId]
+    );
+
+    if (journalCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Journal not found' });
+    }
+    const journal = journalCheck.rows[0];
+    if (journal.user_id !== owner.id) {
+      return res.status(403).json({ message: 'Only the owner can share this journal' });
+    }
+    
+    const insertQuery = `
+      INSERT INTO journal_collaborators (journal_id, user_id, permission)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (journal_id, user_id)
+      DO UPDATE SET permission = EXCLUDED.permission
+      RETURNING *;
+    `;
+    const { rows } = await db.query(insertQuery, [journalId, collaboratorId, permission]);
+
+    try {
+      await axios.post(
+        `${process.env.CHAT_SERVICE_URL}/internal/notifications/journal_share`,
+        {
+          sharerId: owner.id,
+          recipientId: collaboratorId,
+          journalId: journalId,
+          sharerUsername: journal.owner_username
+        },
+        {
+          headers: {
+            'x-internal-api-key': process.env.INTERNAL_API_KEY
+          }
+        }
+      );
+      console.log('Successfully sent share notification to Chat Service');
+    } catch (notificationError) {
+      console.error('Failed to send share notification:', (notificationError as any).message);
+    }
+    
+    res.status(200).json({
+      message: 'Journal shared successfully',
+      collaboration: rows[0],
+    });
+
+  } catch (error) {
+    console.error('Error sharing journal:', error);
+    if ((error as any).code === '23503') {
+        return res.status(404).json({ message: 'Collaborator user not found' });
+    }
+    res.status(500).json({ message: 'Server error while sharing journal' });
   }
 });
 
