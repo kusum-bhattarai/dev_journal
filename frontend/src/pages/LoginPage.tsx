@@ -1,23 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import Button from '../components/Button';
 import { FaGithub } from 'react-icons/fa';
 import Input from '../components/Input';
 import Navbar from '../components/Navbar';
-import { useAuth } from '../utils/auth'
+import { useAuth } from '../utils/auth';
+import { useToast } from '../hooks/use-toast';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [showPopup, setShowPopup] = useState(false);
-  const [popupMessage, setPopupMessage] = useState('');
   const { login } = useAuth();
-
+  const { toast } = useToast();
 
   const handleLogin = async () => {
     try {
+      // client-side validation 
+      if (!email || !password) {
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Email and password are required.',
+        });
+        return; // Prevent submission
+      }
+      if (!/\S+@\S+\.\S+/.test(email)) { // Basic email regex
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Please enter a valid email address.',
+        });
+        return;
+      }
+      if (password.length < 8) {
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Password must be at least 8 characters long.',
+        });
+        return;
+      }
+      
       const response = await fetch('http://localhost:3001/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -28,47 +52,24 @@ const LoginPage = () => {
         throw new Error(data.error || 'Login failed');
       }
 
-      login(data.token); 
-      setPopupMessage('Login Successful!');
-      setShowPopup(true);
-
-      setTimeout(()=>{
+      toast({
+        title: 'Login Successful!',
+        description: 'Redirecting...',
+      });
+      
+      setTimeout(() => {
+        login(data.token);
         navigate('/');
-      }, 2000);
+      }, 1500);
+
     } catch (error: any) {
-      setPopupMessage(error.message);
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
+      toast({
+        variant: 'destructive',
+        title: 'Login Failed',
+        description: error.message,
+      });
     }
   };
-
-  useEffect(() => {
-    const status = searchParams.get('status');
-    if (status) {
-      let message = '';
-      switch (status) {
-        case 'registered':
-          message = 'Registration successful! Please log in.';
-          break;
-        case 'already-registered':
-          message = 'This GitHub account is already registered.';
-          break;
-        case 'not-registered':
-          message = 'This GitHub account is not registered. Please register first.';
-          break;
-        default:
-          message = 'An unknown error occurred.';
-          break;
-      }
-      setPopupMessage(message);
-      setShowPopup(true);
-      setTimeout(() => {
-        setShowPopup(false);
-        navigate('/login', { replace: true });
-      }, 3000);
-    }
-  }, [searchParams, navigate]);
-
 
   return (
     <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6">
@@ -76,30 +77,27 @@ const LoginPage = () => {
       <h1 className="text-4xl mb-6 animate-glitch text-center pt-2">Login</h1>
       <div className="max-w-md mx-auto bg-matrix-gray p-6 rounded-lg shadow-lg animate-fadeIn">
         <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-        <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="mt-4" />
+        <Input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          className="mt-4"
+        />
         <Button onClick={handleLogin} className="mt-6 w-full">
           Login
         </Button>
         <a
           href="http://localhost:3001/auth/github?state=login"
           className="mt-4 block w-full text-center bg-matrix-green text-matrix-black px-4 py-2 rounded hover:bg-green-500 transition duration-300 flex items-center justify-center"
-          > 
+        >
           <FaGithub className="mr-2" /> Login with GitHub
-      </a>
-      <div className="text-center mt-4">
+        </a>
+        <div className="text-center mt-4">
           <Link to="/register" className="text-matrix-green hover:underline">
             New user? Register here!
           </Link>
         </div>
       </div>
-      {showPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-matrix-gray p-6 rounded-lg shadow-lg text-matrix-green font-mono animate-fadeIn">
-            <h2 className="text-2xl mb-2">{popupMessage}</h2>
-            <p>Redirecting...</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

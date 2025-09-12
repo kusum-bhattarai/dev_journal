@@ -1,21 +1,20 @@
-import React from 'react';
+import * as React from 'react';
+import { Textarea as ShadcnTextarea } from './ui/textarea';
 
-interface InputProps {
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  placeholder?: string;
-  className?: string;
-}
+export interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
 
-const Input = ({ value, onChange, placeholder = '', className = '' }: InputProps) => {
-  return (
-    <textarea
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className={`w-full h-12 bg-matrix-black text-matrix-green border-none outline-none p-2 resize-none rounded ${className}`}
-    />
-  );
-};
+const Input = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <ShadcnTextarea
+        className={`bg-matrix-black text-matrix-green border-none outline-none p-2 resize-none rounded ${className}`}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+Input.displayName = 'Input';
 
 export default Input;

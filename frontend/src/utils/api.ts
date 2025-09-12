@@ -32,8 +32,20 @@ export const getJournalEntries = async () => {
   return response.data;
 };
 
+export const getJournalEntry = async (id: number) => {
+  const response = await journalApi.get(`/journals/${id}`, {
+    headers: { 'Cache-Control': 'no-cache' }
+  });
+  return response.data;
+};
+
 export const createJournalEntry = async (content: string) => {
   const response = await journalApi.post('/journals', { content });
+  return response.data;
+};
+
+export const updateJournalEntry = async (id: number, content: string) => {
+  const response = await journalApi.put(`/journals/${id}`, { content });
   return response.data;
 };
 
@@ -58,6 +70,15 @@ export const createConversation = async (user1Id: number, user2Id: number) => {
 export const getConversations = async (): Promise<Conversation[]> => {
     const response = await chatApi.get('/conversations');
     return response.data;
+};
+
+export const getMessages = async (conversationId: number, page = 1) => {
+  const response = await fetch(`http://localhost:3003/messages/${conversationId}?page=${page}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+  });
+  if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
 };
 
 export default api;

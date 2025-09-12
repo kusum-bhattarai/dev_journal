@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../utils/auth';
 import Input from './Input';
 import Button from './Button';
-import { searchUsers, createConversation, getConversations } from '../utils/api';
+import { searchUsers, createConversation, getConversations, getMessages } from '../utils/api';
 import io, { Socket } from 'socket.io-client';
 import { User, Conversation, Message } from '../types';
+import { Avatar, AvatarFallback } from './ui/avatar';
 
 interface ChatWindowProps {
   isChatOpen: boolean;
@@ -20,8 +21,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null); // Current user ID
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Added to prevent multiple loads
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
   const fetchConversations = useCallback(async () => {
@@ -35,25 +41,44 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
     }
   }, [token]);
 
-  const fetchMessages = useCallback(async () => {
-    if (!conversation || !token) return;
+  const loadMessages = useCallback(async (reset = false) => {
+    if (!conversation || !token || (isLoading && !reset)) return;
+    // We check `hasMore` inside, but don't need it as a dependency
+    if (!hasMore && !reset) return;
+
+    setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:3003/messages/${conversation.conversation_id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-      const data = await response.json();
-      setMessages(Array.isArray(data) ? data : []);
+      const currentPage = reset ? 1 : page; // Using a local variable for the current page
+      const prevHeight = chatContainerRef.current?.scrollHeight || 0;
+      const prevScrollTop = chatContainerRef.current?.scrollTop || 0;
+
+      const newMessages = await getMessages(conversation.conversation_id, currentPage);
+      if (newMessages.length < 20) setHasMore(false);
+      
+      // Using functional updates to avoid depending on `messages` state
+      setMessages((prev) => reset ? newMessages.reverse() : [...newMessages.reverse(), ...prev]);
+      
+      if (reset) {
+          setPage(2); // Set page for the *next* load
+      } else {
+          setPage((p) => p + 1);
+      }
+
+      if (chatContainerRef.current && !reset) {
+        const newHeight = chatContainerRef.current.scrollHeight;
+        chatContainerRef.current.scrollTop = prevScrollTop + (newHeight - prevHeight);
+      }
     } catch (error) {
-      console.error('fetchMessages: Failed to fetch messages', error);
-      setMessages([]);
+      console.error('loadMessages: Failed to fetch messages', error);
+    } finally {
+      setIsLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps  
   }, [conversation, token]);
 
   useEffect(() => {
     if (!isChatOpen || !token) return;
 
-    // Extract current user ID from token on mount
     const tokenData = JSON.parse(atob(token.split('.')[1]));
     setCurrentUserId(tokenData.userId);
 
@@ -161,7 +186,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
     const userToChatWith: User = {
       user_id: conv.other_user_id,
       username: conv.other_username,
-      email: '', // Not needed for this view
+      email: '',
     };
 
     setSelectedUser(userToChatWith);
@@ -172,33 +197,44 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
 
   useEffect(() => {
     if (conversation && currentUserId) {
-      // This function now also handles marking messages as read after fetching
-      const loadAndReadMessages = async () => {
-        await fetchMessages(); // Wait for messages to be fetched and set in state
-
-        setTimeout(() => {
-          setMessages(prevMessages => {
-            // Find unread messages where the current user was the receiver
-            const unreadMessageIds = prevMessages
-              .filter(msg => !msg.read_status && msg.receiver_id === currentUserId)
-              .map(msg => msg.message_id);
-
-            // If there are any, and the socket is connected, emit the event
-            if (unreadMessageIds.length > 0 && socketRef.current?.connected) {
-              console.log('Emitting markAsRead for messages:', unreadMessageIds);
-              socketRef.current.emit('markAsRead', {
-                conversationId: conversation.conversation_id,
-                messageIds: unreadMessageIds,
-              });
-            }
-            return prevMessages;
-          });
-        }, 100); 
-      };
-
-      loadAndReadMessages();
+      setMessages([]);
+      setPage(1);
+      setHasMore(true);
+      loadMessages(true);
     }
-  }, [conversation, fetchMessages, currentUserId]);
+  }, [conversation, currentUserId, loadMessages]);
+
+  useEffect(() => {
+    if (sentinelRef.current && observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMessages();
+      }
+    }, { threshold: 1.0 });
+
+    if (sentinelRef.current) observerRef.current.observe(sentinelRef.current);
+
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+    };
+  }, [hasMore, loadMessages]);
+
+  useEffect(() => {
+    if (messages.length > 0 && currentUserId) {
+      const unreadMessageIds = messages
+        .filter(msg => !msg.read_status && msg.receiver_id === currentUserId)
+        .map(msg => msg.message_id);
+
+      if (unreadMessageIds.length > 0 && socketRef.current?.connected) {
+        console.log('Emitting markAsRead for messages:', unreadMessageIds);
+        socketRef.current.emit('markAsRead', {
+          conversationId: conversation?.conversation_id,
+          messageIds: unreadMessageIds,
+        });
+      }
+    }
+  }, [messages, currentUserId, conversation]);
 
   const handleBackToSearch = () => {
     setSelectedUser(null);
@@ -251,24 +287,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
             </button>
           </div>
           <div ref={chatContainerRef} className="flex-1 overflow-y-auto mb-4 bg-matrix-gray-dark border border-matrix-green rounded p-2 space-y-2 h-full">
+            <div ref={sentinelRef} /> 
             {Object.entries(groupedMessages).map(([date, dateMessages], index) => (
               <React.Fragment key={index}>
                 <h3 className="text-center text-sm text-matrix-green-light mb-2">{date}</h3>
                 {dateMessages.map((msg) => (
                   <div key={msg.message_id} className={`flex w-full my-2 ${msg.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}>
-                    <div
-                      className={`max-w-[80%] rounded-lg p-3 border shadow-md flex flex-col ${
-                        msg.sender_id === currentUserId
-                          ? 'bg-green-800/50 border-matrix-green rounded-br-none' // Sender's bubble
-                          : 'bg-matrix-gray-light border-gray-600 rounded-bl-none' // Receiver's bubble
-                      }`}
-                    >
-                      <p className="text-left break-words">{msg.content}</p>
-                      <div className="text-right text-xs mt-1 opacity-70">
-                        <span>{new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-                        {msg.sender_id === currentUserId && (
-                          <span className="text-xs ml-1 opacity-80">{msg.read_status ? '✓✓' : '✓'}</span>
-                        )}
+                    <div className={`max-w-[80%] rounded-lg p-3 border shadow-md ${
+                      msg.sender_id === currentUserId
+                        ? 'bg-green-800/50 border-matrix-green rounded-br-none'
+                        : 'bg-matrix-gray-light border-gray-600 rounded-bl-none'
+                    }`}>
+                      <div className="flex flex-col">
+                        <p className="text-left break-words">{msg.content}</p>
+                        <div className="text-right text-xs mt-1 opacity-70">
+                          <span>{new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                          {msg.sender_id === currentUserId && (
+                            <span className="ml-1">{msg.read_status ? '✓✓' : '✓'}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -301,18 +338,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
             className="mb-4 w-full border border-matrix-green rounded p-2"
           />
           <div className="flex-1 overflow-y-auto mt-4">
-            {/* If there are search results, show them*/}
             {searchResults.length > 0 ? (
               <div className="p-px bg-gradient-to-b from-matrix-green/40 to-matrix-gray-dark/10 rounded-lg">
                 <div className="bg-matrix-gray-dark rounded-lg">
                   {searchResults.map((user, index) => (
                     <div
                       key={user.user_id}
-                      className={`p-3 cursor-pointer hover:bg-matrix-gray transition-colors duration-200 ${
+                      className={`p-3 cursor-pointer hover:bg-matrix-gray transition-colors duration-200 flex items-center gap-2 ${
                         index < searchResults.length - 1 ? 'border-b border-matrix-green-dark' : ''
                       }`}
                       onClick={() => handleUserSelect(user)}
                     >
+                      <Avatar aria-label="User avatar">
+                        <AvatarFallback>{user.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
                       <span className="truncate" title={user.username}>
                         {user.username}
                       </span>
@@ -321,7 +360,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
                 </div>
               </div>
             ) : (
-              /* Otherwise, show the conversation list*/
               <div>
                 {conversations.length > 0 ? (
                   <div className="p-px bg-gradient-to-b from-matrix-green/40 to-matrix-gray-dark/10 rounded-lg">
@@ -330,19 +368,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
                         const isUnread = !conv.read_status && conv.last_message_sender_id !== currentUserId;
                         return (
                           <div
-                            key={conv.conversation_id}
                             className={index < conversations.length - 1 ? 'border-b border-matrix-green-dark' : ''}
                           >
                             <div
-                              className="p-3 cursor-pointer hover:bg-matrix-gray transition-colors duration-200"
+                              className="p-3 cursor-pointer hover:bg-matrix-gray transition-colors duration-200 flex items-center gap-2"
                               onClick={() => handleConversationSelect(conv)}
                             >
-                              <p className={`font-bold truncate ${isUnread ? 'text-matrix-green' : 'text-matrix-green/70'}`}>
-                                {conv.other_username || 'Unknown User'}
-                              </p>
-                              <p className={`text-sm truncate ${isUnread ? 'text-matrix-green/90' : 'text-matrix-green/60'}`}>
-                                {conv.last_message_content || 'No messages yet'}
-                              </p>
+                              <Avatar aria-label="User avatar">
+                                <AvatarFallback>{conv.other_username?.slice(0, 2).toUpperCase() || '??'}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <p className={`font-bold truncate ${isUnread ? 'text-matrix-green' : 'text-matrix-green/70'}`}>
+                                  {conv.other_username || 'Unknown User'}
+                                </p>
+                                <p className={`text-sm truncate ${isUnread ? 'text-matrix-green/90' : 'text-matrix-green/60'}`}>
+                                  {conv.last_message_content || 'No messages yet'}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         );
