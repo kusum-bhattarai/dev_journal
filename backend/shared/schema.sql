@@ -75,3 +75,14 @@ CREATE TABLE journal_collaborators (
 
 -- Index for efficient lookup of a user's collaborations.
 CREATE INDEX idx_journal_collaborators_user ON journal_collaborators(user_id);
+
+-- Add a new type for different kinds of messages
+CREATE TYPE message_type AS ENUM ('text', 'journal_share');
+
+-- Add new columns to the messages table to support typed messages
+ALTER TABLE messages
+ADD COLUMN message_type message_type NOT NULL DEFAULT 'text',
+ADD COLUMN metadata JSONB;
+
+-- Backfill existing messages to be of type 'text'
+UPDATE messages SET message_type = 'text' WHERE message_type IS NULL;
