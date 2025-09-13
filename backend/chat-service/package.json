@@ -12,6 +12,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@types/axios": "^0.9.36",
+    "axios": "^1.12.1",
     "cors": "^2.8.5",
     "dotenv": "^16.6.0",
     "express": "^5.1.0",

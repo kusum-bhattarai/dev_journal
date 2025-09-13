@@ -1,29 +1,35 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-dark.css';
+import { debounce } from 'lodash';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { getJournalEntry, updateJournalEntry } from '../utils/api';
-import { simpleMarkdown } from '../utils/markdown'; // Assume utils/markdown.ts
+import { simpleMarkdown } from '../utils/markdown';
+import { useAuth } from '../utils/auth';
+import io, { Socket } from 'socket.io-client';
 
 interface Journal {
   journal_id: number;
   content: string;
   created_at: string;
+  permission: 'viewer' | 'editor';
 }
 
 const JournalDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [journal, setJournal] = useState<Journal | null>(null);
-  const [content, setContent] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { token } = useAuth();
+  const [journal, setJournal] = React.useState<Journal | null>(null);
+  const [content, setContent] = React.useState('');
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
+  const socketRef = React.useRef<Socket | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const fetchEntry = async () => {
       setLoading(true);
       setError(null);
@@ -33,7 +39,6 @@ const JournalDetail: React.FC = () => {
         setContent(data.content);
       } catch (err) {
         setError('Failed to load entry. Please try again.');
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -41,17 +46,68 @@ const JournalDetail: React.FC = () => {
     fetchEntry();
   }, [id]);
 
-  useEffect(() => {
-    if (isEditing) {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = `${textarea.scrollHeight}px`;
+  React.useEffect(() => {
+    if (!token || !id) return;
+
+    if (!socketRef.current) {
+      const socket = io('http://localhost:3003', {
+        auth: { token },
+      });
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        console.log(`Socket connected: ${socket.id}`);
+        socket.emit('joinJournal', Number(id));
+      });
+
+      socket.on('journalUpdate', (data: { content: string }) => {
+        // When we receive an update, update our local content
+        setContent(data.content);
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error.message);
+      });
+    }
+
+    // The cleanup function runs when the component truly unmounts
+    return () => {
+      if (socketRef.current) {
+        console.log('Component unmounting: Disconnecting socket.');
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
+    };
+  }, [id, token]);
+
+
+  React.useEffect(() => {
+    if (isEditing) {
+      textareaRef.current?.focus();
+      textareaRef.current?.style.setProperty('height', 'auto');
+      textareaRef.current?.style.setProperty('height', `${textareaRef.current.scrollHeight}px`);
     } else {
       Prism.highlightAll();
     }
   }, [content, isEditing]);
+
+  const emitEdit = React.useCallback(
+    debounce((newContent: string) => {
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('journalEdit', {
+          journalId: Number(id),
+          content: newContent,
+          token: token,
+        });
+      }
+    }, 500), // Send updates every 500ms while typing
+    [id, token] // Dependencies for the callback
+  );
+
+  const handleContentChange = (newContent: string) => {
+    setContent(newContent);
+    emitEdit(newContent);
+  };
 
   const handleUpdate = async () => {
     if (!content.trim()) {
@@ -62,16 +118,16 @@ const JournalDetail: React.FC = () => {
     try {
       await updateJournalEntry(Number(id), content);
       setIsEditing(false);
-      navigate('/journal');
     } catch (err) {
-      setError('Failed to update.');
-      console.error(err);
+      setError('Failed to save final changes.');
     }
   };
 
   if (loading) return <p className="text-center">Loading entry...</p>;
   if (error) return <p className="text-red-500 text-center">{error}</p>;
   if (!journal) return <p className="text-center">Entry not found.</p>;
+  
+  const canEdit = journal.permission === 'editor';
 
   return (
     <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6 flex flex-col items-center">
@@ -84,16 +140,21 @@ const JournalDetail: React.FC = () => {
             <Input
               ref={textareaRef}
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => handleContentChange(e.target.value)}
               className="h-auto overflow-hidden mb-4"
+              readOnly={!canEdit}
             />
-            <Button onClick={handleUpdate}>Save Changes</Button>
-            <Button onClick={() => setIsEditing(false)} className="ml-2">Cancel</Button>
+            {canEdit && (
+              <>
+                <Button onClick={handleUpdate}>Save Changes</Button>
+                <Button onClick={() => setIsEditing(false)} className="ml-2">Cancel</Button>
+              </>
+            )}
           </>
         ) : (
           <>
             <div className="p-4 prose prose-invert prose-lg max-w-none" dangerouslySetInnerHTML={{ __html: simpleMarkdown(content) }} />
-            <Button onClick={() => setIsEditing(true)}>Edit</Button>
+            {canEdit && <Button onClick={() => setIsEditing(true)}>Edit</Button>}
           </>
         )}
       </div>

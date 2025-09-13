@@ -60,3 +60,29 @@ SET conversation_id = (
 WHERE conversation_id IS NULL;
 
 ALTER TABLE messages ALTER COLUMN conversation_id SET NOT NULL;
+
+CREATE TYPE permission_level AS ENUM ('viewer', 'editor');
+
+-- Journal Collaborators Table: Manages user access to shared journals.
+CREATE TABLE journal_collaborators (
+  collaboration_id SERIAL PRIMARY KEY,
+  journal_id INTEGER NOT NULL REFERENCES journal_entries(journal_id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  permission permission_level NOT NULL,
+  -- Ensure a user can only be a collaborator on a specific journal once.
+  CONSTRAINT unique_journal_collaborator UNIQUE (journal_id, user_id)
+);
+
+-- Index for efficient lookup of a user's collaborations.
+CREATE INDEX idx_journal_collaborators_user ON journal_collaborators(user_id);
+
+-- Add a new type for different kinds of messages
+CREATE TYPE message_type AS ENUM ('text', 'journal_share');
+
+-- Add new columns to the messages table to support typed messages
+ALTER TABLE messages
+ADD COLUMN message_type message_type NOT NULL DEFAULT 'text',
+ADD COLUMN metadata JSONB;
+
+-- Backfill existing messages to be of type 'text'
+UPDATE messages SET message_type = 'text' WHERE message_type IS NULL;
