@@ -8,7 +8,7 @@ const Home = () => {
       <Navbar />
       <h1 className="text-4xl mb-6 animate-glitch text-center pt-3">Welcome to DevJournal</h1>
       <p className="text-center max-w-2xl mx-auto">
-        DevJournal is your Matrix-inspired space to log coding thoughts, track progress, and reflect on your developer journey.
+        Welcome to the matrix!
       </p>
        <JournalEntry/>
     </div>
