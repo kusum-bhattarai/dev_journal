@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { Socket } from 'socket.io'; 
-import { ExtendedError } from 'socket.io/dist/namespace'; 
+import { Socket } from 'socket.io';
 
 declare module 'socket.io' {
     interface Socket {
@@ -8,8 +7,8 @@ declare module 'socket.io' {
     }
 }
 
-export const socketAuthMiddleware = (socket: Socket, next: (err?: ExtendedError) => void) => {
-    const token = socket.handshake.auth.token as string; // Get token from handshake auth
+export const socketAuthMiddleware = (socket: Socket, next: (err?: Error) => void) => {
+    const token = socket.handshake.auth.token as string;
 
     if (!token) {
         console.warn('Chat Service Auth: No token provided in handshake');
@@ -18,11 +17,14 @@ export const socketAuthMiddleware = (socket: Socket, next: (err?: ExtendedError)
 
     try {
         const JWT_SECRET = process.env.JWT_SECRET;
-        const decoded = jwt.verify(token, JWT_SECRET as string) as { userId: number };
+        if (!JWT_SECRET) {
+            throw new Error('JWT_SECRET is not defined in environment variables');
+        }
+        const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
 
         socket.userId = decoded.userId;
         console.log(`Chat Service Auth: User ${decoded.userId} authenticated for socket ${socket.id}`);
-        next(); 
+        next();
     } catch (error) {
         console.error('Chat Service Auth: Invalid or expired token', error);
         return next(new Error('Invalid or expired token'));

@@ -1,6 +1,7 @@
 module.exports = {
   content: [
     "./src/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {
@@ -9,6 +10,14 @@ module.exports = {
         'matrix-black': '#000000',
         'matrix-gray': '#1a1a1a',
         'matrix-green-dark': '#004208',
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
       },
       spacing: {
         '128': '32rem',
@@ -30,5 +39,8 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require("tailwindcss-animate"), 
+    require('@tailwindcss/typography'), // Added for prose styling
+  ],
 };

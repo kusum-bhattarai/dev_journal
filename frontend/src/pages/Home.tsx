@@ -4,13 +4,12 @@ import JournalEntry from '../components/JournalEntry';
 
 const Home = () => {
   return (
-    <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6">
+    <div>
       <Navbar />
-      <h1 className="text-4xl mb-6 animate-glitch text-center pt-3">Welcome to DevJournal</h1>
-      <p className="text-center max-w-2xl mx-auto">
-        DevJournal is your Matrix-inspired space to log coding thoughts, track progress, and reflect on your developer journey.
-      </p>
-       <JournalEntry/>
+      <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6">
+        <h1 className="text-5xl mb-4 animate-glitch text-center pt-5">𝕎𝕖𝕝𝕔𝕠𝕞𝕖 𝕥𝕠 𝕥𝕙𝕖 𝕄𝕒𝕥𝕣𝕚𝕩!</h1>
+        <JournalEntry/>
+      </div>
     </div>
   );
 };

@@ -16,6 +16,10 @@ export interface Conversation {
     last_message_timestamp?: string;
     read_status?: boolean;
     last_message_sender_id?: number;
+    message_type?: 'text' | 'journal_share';
+    metadata?: {
+        journalId?: number;
+    };
 }
 
 export interface Message {
@@ -26,4 +30,8 @@ export interface Message {
     content: string;
     timestamp: string;
     read_status: boolean;
+    message_type: 'text' | 'journal_share';
+    metadata: {
+        journalId?: number; // '?' makes it optional, for text messages
+    } | null;
 }

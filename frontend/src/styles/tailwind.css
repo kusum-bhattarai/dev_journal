@@ -2,6 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+  }
+}
+
 body {
     background-color: black;
     color: #008F11;
@@ -9,15 +29,15 @@ body {
 }
 
 .animate-glitch {
-    animation: glitch 1s linear infinte;
+    animation: glitch 1s linear infinite;
 }
 
 @keyframes glitch {
     2%, 64% {
-        transform: translate (2px, 0) skew(0deg);
+        transform: translate(2px, 0) skew(0deg);
     }
     4%, 60% {
-        transform: translate (-2px, 0) skew(0deg);
+        transform: translate(-2px, 0) skew(0deg);
     }
     62% {
         transform: translate(0,0) skew(0deg);
