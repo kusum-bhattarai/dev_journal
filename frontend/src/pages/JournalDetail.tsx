@@ -24,6 +24,7 @@ const JournalDetail: React.FC = () => {
   const [journal, setJournal] = React.useState<Journal | null>(null);
   const [content, setContent] = React.useState('');
   const [isEditing, setIsEditing] = React.useState(false);
+  const [isPreview, setIsPreview] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -57,7 +58,6 @@ const JournalDetail: React.FC = () => {
       socketRef.current = socket;
 
       socket.on('connect', () => {
-        console.log(`Socket connected: ${socket.id}`);
         socket.emit('joinJournal', Number(id));
       });
 
@@ -72,7 +72,6 @@ const JournalDetail: React.FC = () => {
 
     return () => {
       if (socketRef.current) {
-        console.log('Component unmounting: Disconnecting socket.');
         socketRef.current.disconnect();
         socketRef.current = null;
       }
@@ -81,16 +80,16 @@ const JournalDetail: React.FC = () => {
 
 
   React.useEffect(() => {
-    if (isEditing) {
+    if (isEditing && !isPreview) {
       textareaRef.current?.focus();
       textareaRef.current?.style.setProperty('height', 'auto');
       textareaRef.current?.style.setProperty('height', `${textareaRef.current.scrollHeight}px`);
     } else {
-      // We still use Prism to highlight code blocks within the rendered markdown
+      // using Prism to highlight code blocks within the rendered markdown
       Prism.highlightAll();
     }
-  }, [content, isEditing]);
-
+  }, [content, isEditing, isPreview]);
+  
   const emitEdit = React.useCallback(
     debounce((newContent: string) => {
       if (socketRef.current?.connected) {
@@ -118,10 +117,16 @@ const JournalDetail: React.FC = () => {
     try {
       await updateJournalEntry(Number(id), content);
       setIsEditing(false);
+      setIsPreview(false); // Reset preview state on save
     } catch (err) {
       setError('Failed to save final changes.');
     }
   };
+  
+  const handleCancel = () => {
+      setIsEditing(false);
+      setIsPreview(false); // Reset preview state on cancel
+  }
 
   if (loading) return <p className="text-center">Loading entry...</p>;
   if (error) return <p className="text-red-500 text-center">{error}</p>;
@@ -134,30 +139,39 @@ const JournalDetail: React.FC = () => {
       <h1 className="text-4xl mb-6 animate-glitch">Journal Entry</h1>
       <p className="text-sm mb-4">Created: {new Date(journal.created_at).toLocaleString()}</p>
       {error && <p className="text-red-500 mb-4">{error}</p>}
-      <div className="max-w-xl w-full border border-matrix-green p-4 rounded-lg bg-matrix-gray shadow-lg animate-fadeIn">
+      <div className="max-w-4xl w-full border border-matrix-green p-4 rounded-lg bg-matrix-gray shadow-lg animate-fadeIn">
         {isEditing ? (
           <>
-            <Input
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => handleContentChange(e.target.value)}
-              className="h-auto overflow-hidden mb-4"
-              readOnly={!canEdit}
-            />
+            {isPreview ? (
+              <div className="p-4 prose prose-invert prose-lg max-w-none min-h-[250px] border border-matrix-green-dark rounded-md">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+              </div>
+            ) : (
+              <Input
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => handleContentChange(e.target.value)}
+                className="h-auto overflow-hidden mb-4 min-h-[200px]"
+                readOnly={!canEdit}
+              />
+            )}
+            
             {canEdit && (
-              <>
-                <Button onClick={handleUpdate}>Save Changes</Button>
-                <Button onClick={() => setIsEditing(false)} className="ml-2">Cancel</Button>
-              </>
+              <div className="mt-4 flex justify-between">
+                <div>
+                  <Button onClick={handleUpdate}>Save Changes</Button>
+                  <Button onClick={handleCancel} className="ml-2">Cancel</Button>
+                </div>
+                <Button onClick={() => setIsPreview(!isPreview)}>
+                  {isPreview ? 'Edit' : 'Preview'}
+                </Button>
+              </div>
             )}
           </>
         ) : (
           <>
-            {/* --- UPDATED MARKDOWN RENDERING --- */}
             <div className="p-4 prose prose-invert prose-lg max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {content}
-              </ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             </div>
             {canEdit && <Button onClick={() => setIsEditing(true)}>Edit</Button>}
           </>
