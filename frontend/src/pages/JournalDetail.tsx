@@ -6,7 +6,8 @@ import { debounce } from 'lodash';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { getJournalEntry, updateJournalEntry } from '../utils/api';
-import { simpleMarkdown } from '../utils/markdown';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useAuth } from '../utils/auth';
 import io, { Socket } from 'socket.io-client';
 
@@ -61,7 +62,6 @@ const JournalDetail: React.FC = () => {
       });
 
       socket.on('journalUpdate', (data: { content: string }) => {
-        // When we receive an update, update our local content
         setContent(data.content);
       });
 
@@ -70,7 +70,6 @@ const JournalDetail: React.FC = () => {
       });
     }
 
-    // The cleanup function runs when the component truly unmounts
     return () => {
       if (socketRef.current) {
         console.log('Component unmounting: Disconnecting socket.');
@@ -87,6 +86,7 @@ const JournalDetail: React.FC = () => {
       textareaRef.current?.style.setProperty('height', 'auto');
       textareaRef.current?.style.setProperty('height', `${textareaRef.current.scrollHeight}px`);
     } else {
+      // We still use Prism to highlight code blocks within the rendered markdown
       Prism.highlightAll();
     }
   }, [content, isEditing]);
@@ -100,8 +100,8 @@ const JournalDetail: React.FC = () => {
           token: token,
         });
       }
-    }, 500), // Send updates every 500ms while typing
-    [id, token] // Dependencies for the callback
+    }, 500),
+    [id, token]
   );
 
   const handleContentChange = (newContent: string) => {
@@ -153,7 +153,12 @@ const JournalDetail: React.FC = () => {
           </>
         ) : (
           <>
-            <div className="p-4 prose prose-invert prose-lg max-w-none" dangerouslySetInnerHTML={{ __html: simpleMarkdown(content) }} />
+            {/* --- UPDATED MARKDOWN RENDERING --- */}
+            <div className="p-4 prose prose-invert prose-lg max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {content}
+              </ReactMarkdown>
+            </div>
             {canEdit && <Button onClick={() => setIsEditing(true)}>Edit</Button>}
           </>
         )}
