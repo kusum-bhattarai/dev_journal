@@ -12,8 +12,11 @@ import {
   DropdownMenuSeparator,
 } from './ui/dropdown-menu';
 import { Avatar, AvatarFallback } from './ui/avatar';
+interface NavbarProps {
+  variant?: 'full' | 'chatOnly';
+}
 
-const Navbar = () => {
+const Navbar: React.FC<NavbarProps> = ({ variant = 'full' }) => {
   const { token, logout } = useAuth();
   const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -21,6 +24,26 @@ const Navbar = () => {
     setIsChatOpen(!isChatOpen);
   };
 
+  // The chat window is always rendered, just controlled by isChatOpen state
+  const chatComponent = <ChatWindow isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} />;
+
+  // Conditionally render the "chatOnly" variant
+  if (variant === 'chatOnly') {
+    return (
+      <>
+        <button
+          onClick={handleChatToggle}
+          className="fixed bottom-6 right-6 z-50 bg-matrix-green text-matrix-black h-14 w-14 rounded-full flex items-center justify-center shadow-lg hover:bg-green-500 transition-transform hover:scale-110"
+          title="Open Chat"
+        >
+          <BsChatFill size={24} />
+        </button>
+        {chatComponent}
+      </>
+    );
+  }
+
+  // --- Default 'full' variant ---
   return (
     <nav className="flex justify-between items-center p-4 bg-matrix-gray text-matrix-green border-b border-matrix-green">
       <div className="text-2xl font-bold animate-pulse">
@@ -28,7 +51,6 @@ const Navbar = () => {
       </div>
       <div className="flex items-center gap-4">
         {token ? (
-          // If a token exists, show Chat and the new Dropdown Menu
           <>
             <button
               onClick={handleChatToggle}
@@ -65,7 +87,6 @@ const Navbar = () => {
             </DropdownMenu>
           </>
         ) : (
-          // If no token, show Login and Register links
           <>
             <Link to="/login" className="hover:text-green-300 text-lg">
               Login
@@ -76,7 +97,7 @@ const Navbar = () => {
           </>
         )}
       </div>
-      <ChatWindow isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} />
+      {chatComponent}
     </nav>
   );
 };

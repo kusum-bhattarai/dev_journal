@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAuth } from '../utils/auth';
 import io, { Socket } from 'socket.io-client';
+import Navbar from '../components/Navbar'; // Import Navbar
 
 interface Journal {
   journal_id: number;
@@ -117,7 +118,7 @@ const JournalDetail: React.FC = () => {
     try {
       await updateJournalEntry(Number(id), content);
       setIsEditing(false);
-      setIsPreview(false); // Reset preview state on save
+      setIsPreview(false);
     } catch (err) {
       setError('Failed to save final changes.');
     }
@@ -125,7 +126,7 @@ const JournalDetail: React.FC = () => {
   
   const handleCancel = () => {
       setIsEditing(false);
-      setIsPreview(false); // Reset preview state on cancel
+      setIsPreview(false);
   }
 
   if (loading) return <p className="text-center">Loading entry...</p>;
@@ -135,50 +136,53 @@ const JournalDetail: React.FC = () => {
   const canEdit = journal.permission === 'editor';
 
   return (
-    <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6 flex flex-col items-center">
-      <h1 className="text-4xl mb-6 animate-glitch">Journal Entry</h1>
-      <p className="text-sm mb-4">Created: {new Date(journal.created_at).toLocaleString()}</p>
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-      <div className="max-w-4xl w-full border border-matrix-green p-4 rounded-lg bg-matrix-gray shadow-lg animate-fadeIn">
-        {isEditing ? (
-          <>
-            {isPreview ? (
-              <div className="p-4 prose prose-invert prose-lg max-w-none min-h-[250px] border border-matrix-green-dark rounded-md">
+    <>
+      <Navbar variant="chatOnly" />
+      <div className="min-h-screen bg-matrix-black text-matrix-green font-mono p-6 flex flex-col items-center">
+        <h1 className="text-4xl mb-6 animate-glitch">Journal Entry</h1>
+        <p className="text-sm mb-4">Created: {new Date(journal.created_at).toLocaleString()}</p>
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+        <div className="max-w-4xl w-full border border-matrix-green p-4 rounded-lg bg-matrix-gray shadow-lg animate-fadeIn">
+          {isEditing ? (
+            <>
+              {isPreview ? (
+                <div className="p-4 prose prose-invert prose-lg max-w-none min-h-[250px] border border-matrix-green-dark rounded-md">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                </div>
+              ) : (
+                <Input
+                  ref={textareaRef}
+                  value={content}
+                  onChange={(e) => handleContentChange(e.target.value)}
+                  className="h-auto overflow-hidden mb-4 min-h-[200px]"
+                  readOnly={!canEdit}
+                />
+              )}
+              
+              {canEdit && (
+                <div className="mt-4 flex justify-between">
+                  <div>
+                    <Button onClick={handleUpdate}>Save Changes</Button>
+                    <Button onClick={handleCancel} className="ml-2">Cancel</Button>
+                  </div>
+                  <Button onClick={() => setIsPreview(!isPreview)}>
+                    {isPreview ? 'Edit' : 'Preview'}
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="p-4 prose prose-invert prose-lg max-w-none">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
               </div>
-            ) : (
-              <Input
-                ref={textareaRef}
-                value={content}
-                onChange={(e) => handleContentChange(e.target.value)}
-                className="h-auto overflow-hidden mb-4 min-h-[200px]"
-                readOnly={!canEdit}
-              />
-            )}
-            
-            {canEdit && (
-              <div className="mt-4 flex justify-between">
-                <div>
-                  <Button onClick={handleUpdate}>Save Changes</Button>
-                  <Button onClick={handleCancel} className="ml-2">Cancel</Button>
-                </div>
-                <Button onClick={() => setIsPreview(!isPreview)}>
-                  {isPreview ? 'Edit' : 'Preview'}
-                </Button>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="p-4 prose prose-invert prose-lg max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-            </div>
-            {canEdit && <Button onClick={() => setIsEditing(true)}>Edit</Button>}
-          </>
-        )}
+              {canEdit && <Button onClick={() => setIsEditing(true)}>Edit</Button>}
+            </>
+          )}
+        </div>
+        <Button onClick={() => navigate('/journal')} className="mt-4">Back to List</Button>
       </div>
-      <Button onClick={() => navigate('/journal')} className="mt-4">Back to List</Button>
-    </div>
+    </>
   );
 };
 
