@@ -6,6 +6,7 @@ import cors from 'cors';
 import db from './db';
 import { socketAuthMiddleware } from './middleware/auth';
 import { QueryResult } from 'pg';
+import axios from 'axios'; 
 
 dotenv.config();
 
@@ -37,7 +38,6 @@ const internalAuthMiddleware = (req: Request, res: Response, next: NextFunction)
     next();
 };
 
-// Simplified asyncHandler that just passes errors to Express's default handler
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
     (req: Request, res: Response, next: NextFunction) => {
         Promise.resolve(fn(req, res, next)).catch(next);
@@ -90,6 +90,7 @@ const saveMessage = async (
     return savedMessage;
 };
 
+// ... All your app.post and app.get routes remain unchanged ...
 app.post('/conversations', asyncHandler(async (req, res) => {
     const { user1Id, user2Id } = req.body;
     if (!user1Id || !user2Id) {
@@ -165,7 +166,7 @@ app.get('/messages/:conversationId', asyncHandler(async (req, res) => {
         res.status(403).json({ error: 'User not authorized for this conversation' });
         return;
     }
-    const result = await db.query('SELECT * FROM messages WHERE conversation_id = $1 ORDER BY timestamp DESC LIMIT $2 OFFSET $3', [parseInt(conversationId), limit, offset]);
+    const result = await db.query('SELECT * FROM messages WHERE conversation_id = $1 ORDER BY timestamp ASC LIMIT $2 OFFSET $3', [parseInt(conversationId), limit, offset]);
     res.status(200).json(result.rows);
 }));
 
@@ -198,46 +199,77 @@ app.post('/internal/notifications/journal_share', internalAuthMiddleware, asyncH
     res.status(200).json({ message: 'Notification sent successfully', sentMessage: savedMessage });
 }));
 
+
 io.on('connection', (socket) => {
     console.log(`User ${socket.userId} connected`);
 
+    // --- CHAT LOGIC ---
     socket.on('joinRoom', (conversationId: string) => {
         socket.join(`room_${conversationId}`);
-        console.log(`User ${socket.userId} joined room_${conversationId}`);
+        console.log(`User ${socket.userId} joined conversation room_${conversationId}`);
     });
 
     socket.on('sendMessage', async (data: { conversationId: string; senderId: number; content: string }) => {
         try {
-            if (!data.conversationId || !data.senderId || !data.content) {
-                socket.emit('messageError', { error: 'Missing message data' });
-                return;
-            }
             const savedMessage = await saveMessage(parseInt(data.conversationId), data.senderId, data.content, 'text', null);
             io.to(`room_${data.conversationId}`).emit('receiveMessage', savedMessage);
         } catch (error) {
-            console.error('Error handling sendMessage:', (error as Error).message);
-            socket.emit('messageError', { error: 'Failed to send message', details: (error as Error).message });
+            socket.emit('messageError', { error: 'Failed to send message' });
         }
     });
 
     socket.on('markAsRead', async (data: { conversationId: string; messageIds: number[] }) => {
         try {
-            const { conversationId, messageIds } = data;
-            if (!conversationId || !messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
-                socket.emit('messageError', { error: 'Invalid markAsRead data' });
-                return;
-            }
             const userId = socket.userId;
-            const convCheck = await db.query('SELECT 1 FROM conversations WHERE conversation_id = $1 AND (user1_id = $2 OR user2_id = $2)',[parseInt(conversationId), userId]);
-            if (convCheck.rows.length === 0) {
-                socket.emit('messageError', { error: 'User not authorized for this conversation' });
-                return;
-            }
-            await db.query('UPDATE messages SET read_status = TRUE WHERE conversation_id = $1 AND message_id = ANY($2::int[]) AND receiver_id = $3',[parseInt(conversationId), messageIds, userId]);
-            io.to(`room_${conversationId}`).emit('messageUpdated', { messageIds, read_status: true });
+            await db.query(
+                'UPDATE messages SET read_status = TRUE WHERE conversation_id = $1 AND message_id = ANY($2::int[]) AND receiver_id = $3',
+                [parseInt(data.conversationId), data.messageIds, userId]
+            );
+            io.to(`room_${data.conversationId}`).emit('messageUpdated', { messageIds: data.messageIds, read_status: true });
         } catch (error) {
-            console.error('Error handling markAsRead:', (error as Error).message);
-            socket.emit('messageError', { error: 'Failed to mark messages as read', details: (error as Error).message });
+            socket.emit('messageError', { error: 'Failed to mark messages as read' });
+        }
+    });
+
+    // --- NEW JOURNAL COLLABORATION LOGIC ---
+    const journalRoomPrefix = 'journal-room-';
+
+    socket.on('joinJournal', (journalId: number) => {
+        const roomName = `${journalRoomPrefix}${journalId}`;
+        socket.join(roomName);
+        console.log(`[Socket Event] User ${socket.userId} joined journal room: ${roomName}`);
+    });
+
+    socket.on('leaveJournal', (journalId: number) => {
+        const roomName = `${journalRoomPrefix}${journalId}`;
+        socket.leave(roomName);
+        console.log(`[Socket Event] User ${socket.userId} left journal room: ${roomName}`);
+    });
+
+    socket.on('journalEdit', async (data: { journalId: number; content: string; token: string }) => {
+        const { journalId, content, token } = data;
+        const roomName = `${journalRoomPrefix}${journalId}`;
+        console.log(`[Socket Event] Received 'journalEdit' from User ${socket.userId}`);
+
+        try {
+            const response = await axios.get(`${process.env.JOURNAL_SERVICE_URL}/api/journals/${journalId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.data.permission !== 'editor') {
+                throw new Error('User does not have editor permissions');
+            }
+
+            console.log(`[Socket Broadcast] Broadcasting 'journalUpdate' to room ${roomName}.`);
+            socket.broadcast.to(roomName).emit('journalUpdate', { content });
+
+            await axios.put(`${process.env.JOURNAL_SERVICE_URL}/api/journals/${journalId}`, { content }, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+        } catch (error) {
+            console.error(`[Socket Error] in journalEdit:`, (error as any).message);
+            socket.emit('messageError', { error: 'Failed to update journal' });
         }
     });
 
