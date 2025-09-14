@@ -131,7 +131,7 @@ app.get(
       
       // If registration was successful, redirect to login page with a success status
       if (info.message === 'registration-successful') {
-        return res.redirect('${process.env.FRONTEND_URL}/login?status=registered');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?status=registered`);
       }
       
       // If login was successful, generate a token and redirect to the frontend with it
