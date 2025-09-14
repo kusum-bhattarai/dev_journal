@@ -6,7 +6,6 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import passport from 'passport';
 
-// Mock the Pool from 'pg' so we don't need a real database
 jest.mock('pg', () => {
   const mPool = { query: jest.fn() };
   return { Pool: jest.fn(() => mPool) };
@@ -19,13 +18,11 @@ jest.mock('bcrypt', () => ({
   compare: jest.fn(),
 }));
 
-// Mock jsonwebtoken
 jest.mock('jsonwebtoken', () => ({
   ...jest.requireActual('jsonwebtoken'),
   sign: jest.fn(() => 'test-jwt-token'),
 }));
 
-// Mock passport
 jest.mock('passport', () => ({
   initialize: jest.fn(() => (req: any, res: any, next: any) => next()),
   use: jest.fn(),
@@ -35,13 +32,16 @@ jest.mock('passport', () => ({
 let app: Express;
 let mockPool: jest.Mocked<Pool>;
 
-import appModule from '../index';
-app = appModule;
-
 describe('User Service API', () => {
+
+  beforeAll(async () => {
+    // Dynamically import the app module
+    const appModule = await import('../index');
+    // Set the app variable for your tests to use
+    app = appModule.default;
+  });
+
   beforeEach(() => {
-    // Before each test, get a fresh instance of the mocked pool
-    // and clear all mock function history
     mockPool = new Pool() as jest.Mocked<Pool>;
     jest.clearAllMocks();
   });
@@ -115,7 +115,7 @@ describe('User Service API', () => {
         const response = await request(app).get('/auth/github/callback');
         
         expect(response.status).toBe(302);
-        expect(response.headers.location).toBe('http://localhost:3000/auth/callback?token=test-jwt-token');
+        expect(response.headers.location).toBe(`${process.env.FRONTEND_URL}/auth/callback?token=test-jwt-token`);
     });
 
     it('should redirect to login with "registered" status on successful registration', async () => {
@@ -125,7 +125,7 @@ describe('User Service API', () => {
         const response = await request(app).get('/auth/github/callback');
         
         expect(response.status).toBe(302);
-        expect(response.headers.location).toBe('http://localhost:3000/login?status=registered');
+        expect(response.headers.location).toBe(`${process.env.FRONTEND_URL}/login?status=registered`);
     });
 
     it('should redirect to login with "not-registered" status if user is not found', async () => {
@@ -134,7 +134,7 @@ describe('User Service API', () => {
         const response = await request(app).get('/auth/github/callback');
         
         expect(response.status).toBe(302);
-        expect(response.headers.location).toBe('http://localhost:3000/login?status=not-registered');
+        expect(response.headers.location).toBe(`${process.env.FRONTEND_URL}/login?status=not-registered`);
     });
   });
 
@@ -160,4 +160,5 @@ describe('User Service API', () => {
         );
     });
   });
+
 });
