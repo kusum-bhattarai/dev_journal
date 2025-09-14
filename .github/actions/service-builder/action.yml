@@ -1,0 +1,39 @@
+name: 'Build, Test, and Push Service'
+description: 'Runs tests, builds a Docker image, and pushes it to ECR for a given service.'
+
+inputs:
+  ecr-repo-uri:
+    description: 'The full URI of the ECR repository'
+    required: true
+  services:
+    description: 'A comma-separated list of services to build'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Process services
+      shell: bash
+      run: |
+        IFS=',' read -ra SERVICE_ARRAY <<< "${{ inputs.services }}"
+        for service in "${SERVICE_ARRAY[@]}"; do
+          echo "--- Processing $service ---"
+          cd backend/$service
+
+          echo "Installing dependencies..."
+          npm install
+
+          echo "Running tests..."
+          npm test
+
+          echo "Building and pushing Docker image..."
+          docker build -t ${{ inputs.ecr-repo-uri }}/$service:latest .
+          docker push ${{ inputs.ecr-repo-uri }}/$service:latest
+          
+          cd ../.. # Go back to the root directory for the next service
+        done
