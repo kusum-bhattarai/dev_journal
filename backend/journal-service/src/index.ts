@@ -206,6 +206,12 @@ app.put('/api/journals/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+// Only start the server if not in a test environment
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(port, () => {
+        console.log(`Server running on port ${port}`);
+    });
+}
+  
+// Export the app for testing purposes
+export default app;
