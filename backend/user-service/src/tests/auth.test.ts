@@ -39,7 +39,7 @@ let app: Express;
 let mockPool: jest.Mocked<Pool>;
 
 // Dynamically import the app *after* all mocks are set up
-import appModule from './index';
+import appModule from '../index';
 app = appModule;
 
 describe('User Service API', () => {
