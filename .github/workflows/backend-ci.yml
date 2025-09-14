@@ -50,3 +50,21 @@ jobs:
         with:
           ecr-repo-uri: ${{ steps.ecr-repo.outputs.uri }}
           services: 'user-service,journal-service,chat-service'
+        
+        env:
+          # --- Simplified Database Configuration ---
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+          # --- For User Service OAuth ---
+          GITHUB_CLIENT_ID: ${{ secrets.OAUTH_GITHUB_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          API_URL: ${{ secrets.API_URL }}
+
+          # --- For All Services ---
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+
+          # --- For Inter-Service Communication (during tests) ---
+          CHAT_SERVICE_URL: ${{ secrets.CHAT_SERVICE_URL }}
+          JOURNAL_SERVICE_URL: ${{ secrets.JOURNAL_SERVICE_URL }}   

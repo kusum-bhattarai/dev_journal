@@ -1,14 +1,13 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import db from './db';
 import { socketAuthMiddleware } from './middleware/auth';
 import { QueryResult } from 'pg';
 import axios from 'axios'; 
-
-dotenv.config();
 
 const app = express();
 app.use(express.json());

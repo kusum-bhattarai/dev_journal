@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, {Request, Response, RequestHandler} from 'express';
 import { Pool } from 'pg';
 import passport from 'passport';
@@ -13,8 +14,6 @@ interface User {
   email: string;
   password?: string; 
 }
-
-require('dotenv').config();
 
 const app = express();
 app.use(express.json());
@@ -81,7 +80,7 @@ passport.use(
     {
       clientID: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      callbackURL: 'http://localhost:3001/auth/github/callback',
+      callbackURL: `${process.env.API_URL}/auth/github/callback`,
       passReqToCallback: true,
     },
     async (req: any, accessToken: string, refreshToken: string, profile: any, done: (err: any, user?: User | false, info?: { message: string }) => void) => {
@@ -122,22 +121,22 @@ app.get(
   (req, res, next) => {
     passport.authenticate('github', { session: false, failureRedirect: '/login' }, (err: any, user: User | false, info: any) => {
       if (err) {
-        return res.redirect(`http://localhost:3000/login?error=${err.message}`);
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=${err.message}`);
       }
       
       // Handle cases like 'not-registered' or 'already-registered'
       if (!user) {
-        return res.redirect(`http://localhost:3000/login?status=${info.message || 'error'}`);
+        return res.redirect(`${process.env.FRONTEND_URL}/login?status=${info.message || 'error'}`);
       }
       
       // If registration was successful, redirect to login page with a success status
       if (info.message === 'registration-successful') {
-        return res.redirect('http://localhost:3000/login?status=registered');
+        return res.redirect('${process.env.FRONTEND_URL}/login?status=registered');
       }
       
       // If login was successful, generate a token and redirect to the frontend with it
       const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
-      res.redirect(`http://localhost:3000/auth/callback?token=${token}`);
+      res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}`);
 
     })(req, res, next);
   }
