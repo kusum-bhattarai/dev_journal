@@ -29,6 +29,8 @@ const io = new Server(server, {
 
 io.use(socketAuthMiddleware);
 
+// --- All of your route handlers and socket logic remain exactly the same ---
+// (Code omitted for brevity)
 const internalAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
     const apiKey = req.headers['x-internal-api-key'];
     if (!apiKey || apiKey !== process.env.INTERNAL_API_KEY) {
@@ -258,7 +260,7 @@ io.on('connection', (socket) => {
             
             if (response.data.permission !== 'editor') {
                 throw new Error('User does not have editor permissions');
-            }
+}
 
             console.log(`[Socket Broadcast] Broadcasting 'journalUpdate' to room ${roomName}.`);
             socket.broadcast.to(roomName).emit('journalUpdate', { content });
@@ -278,7 +280,14 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.CHAT_SERVICE_PORT || 3003;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+
+// Only start the server if not in a test environment
+if (process.env.NODE_ENV !== 'test') {
+    const PORT = process.env.CHAT_SERVICE_PORT || 3003;
+    server.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+  
+// Export the app, server, and io for testing purposes
+export { app, server, io };

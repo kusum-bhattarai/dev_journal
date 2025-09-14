@@ -40,6 +40,7 @@
   "devDependencies": {
     "@types/prismjs": "^1.26.5",
     "autoprefixer": "^10.4.20",
+    "cypress": "^15.2.0",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^30.1.1",
     "jest-environment-jsdom": "^30.1.1",
