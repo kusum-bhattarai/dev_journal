@@ -1,44 +1,39 @@
 import { Express } from 'express';
 import request from 'supertest';
 import { Pool } from 'pg';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt'; 
 import jwt from 'jsonwebtoken';
 import passport from 'passport';
 
 // Mock the Pool from 'pg' so we don't need a real database
 jest.mock('pg', () => {
-  const mPool = {
-    // mock the query method
-    query: jest.fn(),
-  };
+  const mPool = { query: jest.fn() };
   return { Pool: jest.fn(() => mPool) };
 });
 
-// Mock bcryptjs for consistent hashing and comparison
-jest.mock('bcryptjs', () => ({
-  ...jest.requireActual('bcryptjs'),
+jest.mock('bcrypt', () => ({
+  ...jest.requireActual('bcrypt'),
   genSalt: jest.fn(() => Promise.resolve('somesalt')),
   hash: jest.fn(() => Promise.resolve('hashedpassword')),
   compare: jest.fn(),
 }));
 
-// Mock jsonwebtoken to control the token output
+// Mock jsonwebtoken
 jest.mock('jsonwebtoken', () => ({
   ...jest.requireActual('jsonwebtoken'),
   sign: jest.fn(() => 'test-jwt-token'),
 }));
 
-// Create a more complete mock for Passport that includes all the functions used by index.ts
+// Mock passport
 jest.mock('passport', () => ({
   initialize: jest.fn(() => (req: any, res: any, next: any) => next()),
-  use: jest.fn(), // This was the missing function causing the crash
+  use: jest.fn(),
   authenticate: jest.fn(),
 }));
 
 let app: Express;
 let mockPool: jest.Mocked<Pool>;
 
-// Dynamically import the app *after* all mocks are set up
 import appModule from '../index';
 app = appModule;
 
