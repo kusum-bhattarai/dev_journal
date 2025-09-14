@@ -1,0 +1,52 @@
+name: Backend CI/CD Pipeline
+
+on:
+  # trigger this workflow on every push to the 'main' branch...
+  push:
+    branches:
+      - main
+    # ...but only if files inside the 'backend/' directory were changed.
+    paths:
+      - 'backend/**'
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel.
+jobs:
+  # We define a single job named 'build-and-push'.
+  build-and-push:
+    # The type of virtual machine to run the job on. 'ubuntu-latest' is standard.
+    runs-on: ubuntu-latest
+
+    # A job is a sequence of steps.
+    steps:
+      # Step 1: Check out the code from your repository so the workflow can access it.
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Step 2: Configure the AWS credentials using the secrets we created.
+      # This step securely logs our workflow into AWS.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Step 3: Log in to Amazon ECR (Elastic Container Registry).
+      # This allows us to push Docker images to our private repositories.
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Step 4: Define ECR repository URI as a variable for easier use.
+      # We get the ECR registry address from the previous login step.
+      - name: Define ECR repository URI
+        id: ecr-repo
+        run: echo "uri=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_OUTPUT
+
+      # This is where we will define the build, test, and push process for EACH service.
+      # We use a 'matrix' strategy to run the same set of steps for all three services.
+      - name: Build, test, and push services to ECR
+        uses: ./.github/actions/service-builder
+        with:
+          ecr-repo-uri: ${{ steps.ecr-repo.outputs.uri }}
+          services: 'user-service,journal-service,chat-service'
