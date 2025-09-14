@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import request from 'supertest';
 import app from '../index'; 
 import db from '../db'; 

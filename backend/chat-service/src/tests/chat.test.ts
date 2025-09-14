@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Server as HttpServer } from 'http';
 import { io as ioc, Socket as ClientSocket } from 'socket.io-client';
 import request from 'supertest';
