@@ -31,13 +31,13 @@ describe('Journal Service API', () => {
     mockedJwtVerify.mockReturnValue({ userId: mockUserId });
   });
 
-  describe('GET /api/journals', () => {
+  describe('GET /journals', () => {
     it('should return all journals for a user', async () => {
       const mockJournals = [{ id: 1, content: 'My first journal' }];
       mockedDbQuery.mockResolvedValue({ rows: mockJournals });
 
       const res = await request(app)
-        .get('/api/journals')
+        .get('/journals')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.statusCode).toEqual(200);
@@ -46,14 +46,14 @@ describe('Journal Service API', () => {
     });
   });
 
-  describe('POST /api/journals', () => {
+  describe('POST /journals', () => {
     it('should create a new journal entry', async () => {
       const newJournal = { content: 'A new adventure' };
       const createdJournal = { id: 2, user_id: mockUserId, ...newJournal };
       mockedDbQuery.mockResolvedValue({ rows: [createdJournal] });
 
       const res = await request(app)
-        .post('/api/journals')
+        .post('/journals')
         .set('Authorization', `Bearer ${token}`)
         .send(newJournal);
 
@@ -63,7 +63,7 @@ describe('Journal Service API', () => {
 
     it('should return 400 if content is empty', async () => {
       const res = await request(app)
-        .post('/api/journals')
+        .post('/journals')
         .set('Authorization', `Bearer ${token}`)
         .send({ content: '' });
 
@@ -72,13 +72,13 @@ describe('Journal Service API', () => {
     });
   });
 
-  describe('GET /api/journals/:id', () => {
+  describe('GET /journals/:id', () => {
     it('should return a single journal if user is authorized', async () => {
       const journal = { id: 1, user_id: mockUserId, content: 'Secret content' };
       mockedDbQuery.mockResolvedValue({ rows: [journal] });
 
       const res = await request(app)
-        .get('/api/journals/1')
+        .get('/journals/1')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.statusCode).toEqual(200);
@@ -89,21 +89,21 @@ describe('Journal Service API', () => {
       mockedDbQuery.mockResolvedValue({ rows: [] }); // Simulate no journal found
 
       const res = await request(app)
-        .get('/api/journals/999')
+        .get('/journals/999')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.statusCode).toEqual(404);
     });
   });
 
-  describe('PUT /api/journals/:id', () => {
+  describe('PUT /journals/:id', () => {
     it('should update a journal if user has permission', async () => {
         const updatedContent = { content: 'Updated thoughts' };
         const updatedJournal = { id: 1, user_id: mockUserId, ...updatedContent };
         mockedDbQuery.mockResolvedValue({ rows: [updatedJournal] });
 
         const res = await request(app)
-            .put('/api/journals/1')
+            .put('/journals/1')
             .set('Authorization', `Bearer ${token}`)
             .send(updatedContent);
         
@@ -115,7 +115,7 @@ describe('Journal Service API', () => {
         mockedDbQuery.mockResolvedValue({ rows: [] });
 
         const res = await request(app)
-            .put('/api/journals/999')
+            .put('/journals/999')
             .set('Authorization', `Bearer ${token}`)
             .send({ content: 'Trying to update' });
         
@@ -124,12 +124,12 @@ describe('Journal Service API', () => {
     });
   });
 
-  describe('DELETE /api/journals/:id', () => {
+  describe('DELETE /journals/:id', () => {
     it('should delete a journal if user is the owner', async () => {
       mockedDbQuery.mockResolvedValue({ rowCount: 1 }); // Simulate successful deletion
 
       const res = await request(app)
-        .delete('/api/journals/1')
+        .delete('/journals/1')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.statusCode).toEqual(200);
@@ -147,7 +147,7 @@ describe('Journal Service API', () => {
     });
   });
 
-  describe('POST /api/journals/:id/share', () => {
+  describe('POST /journals/:id/share', () => {
     it('should share a journal successfully and notify chat service', async () => {
         // Mock the owner check
         mockedDbQuery.mockResolvedValueOnce({ rows: [{ user_id: mockUserId, owner_username: 'testowner' }] });
@@ -158,7 +158,7 @@ describe('Journal Service API', () => {
         mockedAxiosPost.mockResolvedValue({ status: 200 });
 
         const res = await request(app)
-            .post('/api/journals/1/share')
+            .post('/journals/1/share')
             .set('Authorization', `Bearer ${token}`)
             .send({ collaboratorId: 2, permission: 'viewer' });
 
@@ -173,7 +173,7 @@ describe('Journal Service API', () => {
         mockedDbQuery.mockResolvedValueOnce({ rows: [{ user_id: 999 }] });
 
         const res = await request(app)
-            .post('/api/journals/1/share')
+            .post('/journals/1/share')
             .set('Authorization', `Bearer ${token}`)
             .send({ collaboratorId: 2, permission: 'viewer' });
         
