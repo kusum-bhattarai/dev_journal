@@ -1,20 +1,21 @@
 import axios from 'axios';
 import { Conversation } from '../types';
 
-const api = axios.create({
-    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001',
+// For user-service (authentication, user search, etc.)
+export const userServiceApi = axios.create({
+    baseURL: process.env.REACT_APP_USER_SERVICE_URL, 
 });
 
-const journalApi = axios.create({
-    baseURL: 'http://localhost:3002/api',
+// For journal-service (CRUD operations on journals)
+export const journalServiceApi = axios.create({
+    baseURL: process.env.REACT_APP_JOURNAL_SERVICE_URL, 
 });
 
-// Chat API instance for chat-service
-const chatApi = axios.create({
-    baseURL: 'http://localhost:3003',
+// For chat-service (conversations and messages)
+export const chatServiceApi = axios.create({
+    baseURL: process.env.REACT_APP_CHAT_SERVICE_URL, 
 });
 
-// single interceptor for both instances
 const addAuthToken = (config: any) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -23,73 +24,71 @@ const addAuthToken = (config: any) => {
     return config;
 };
 
-api.interceptors.request.use(addAuthToken);
-journalApi.interceptors.request.use(addAuthToken);
-chatApi.interceptors.request.use(addAuthToken);
+userServiceApi.interceptors.request.use(addAuthToken);
+journalServiceApi.interceptors.request.use(addAuthToken);
+chatServiceApi.interceptors.request.use(addAuthToken);
+
+// --- Journal Functions ---
 
 export const getJournalEntries = async () => {
-  const response = await journalApi.get('/journals');
+  const response = await journalServiceApi.get('/journals');
   return response.data;
 };
 
 export const getJournalEntry = async (id: number) => {
-  const response = await journalApi.get(`/journals/${id}`, {
+  const response = await journalServiceApi.get(`/journals/${id}`, {
     headers: { 'Cache-Control': 'no-cache' }
   });
   return response.data;
 };
 
 export const createJournalEntry = async (content: string) => {
-  const response = await journalApi.post('/journals', { content });
+  const response = await journalServiceApi.post('/journals', { content });
   return response.data;
 };
 
 export const updateJournalEntry = async (id: number, content: string) => {
-  const response = await journalApi.put(`/journals/${id}`, { content });
+  const response = await journalServiceApi.put(`/journals/${id}`, { content });
   return response.data;
 };
 
 export const deleteJournalEntry = async (journalId: number) => {
-  const response = await journalApi.delete(`/journals/${journalId}`);
+  const response = await journalServiceApi.delete(`/journals/${journalId}`);
   return response.data;
 };
 
-//new share function
 export const shareJournalEntry = async (journalId: number, collaboratorId: number, permission: 'viewer' | 'editor') => {
-  const response = await journalApi.post(`/journals/${journalId}/share`, {
+  const response = await journalServiceApi.post(`/journals/${journalId}/share`, {
     collaboratorId,
     permission,
   });
   return response.data;
 };
 
+// --- User Functions ---
 
 export const searchUsers = async (query: string) => {
-  const response = await api.get(`/users?search=${encodeURIComponent(query)}`);
+  const response = await userServiceApi.get(`/users?search=${encodeURIComponent(query)}`);
   return response.data.map((user: any) => ({
     user_id: user.user_id,
     username: user.username,
-  })); 
+  }));
 };
 
+// --- Chat Functions ---
+
 export const createConversation = async (user1Id: number, user2Id: number) => {
-    const response = await chatApi.post('/conversations', { user1Id, user2Id });
+    const response = await chatServiceApi.post('/conversations', { user1Id, user2Id });
     return response.data;
 };
 
 export const getConversations = async (): Promise<Conversation[]> => {
-    const response = await chatApi.get('/conversations');
+    const response = await chatServiceApi.get('/conversations');
     return response.data;
 };
 
 export const getMessages = async (conversationId: number, page = 1) => {
-  const response = await fetch(`http://localhost:3003/messages/${conversationId}?page=${page}`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-  });
-  if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-  const data = await response.json();
+  const response = await chatServiceApi.get(`/messages/${conversationId}?page=${page}`);
+  const data = response.data;
   return Array.isArray(data) ? data : [];
 };
-
-export default api;
-export { addAuthToken };
