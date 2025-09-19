@@ -48,7 +48,7 @@ const RegisterPage = () => {
         });
         return;
       }
-      const response = await fetch('http://localhost:3001/auth/register', {
+      const response = await fetch(`${process.env.REACT_APP_USER_SERVICE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password }),
@@ -90,7 +90,7 @@ const RegisterPage = () => {
           Register
         </Button>
         <a
-          href="http://localhost:3001/auth/github?state=register"
+          href={`${process.env.REACT_APP_USER_SERVICE_URL}/auth/github?state=register`}
           className="mt-4 block w-full text-center bg-matrix-green text-matrix-black px-4 py-2 rounded hover:bg-green-500 transition duration-300 flex items-center justify-center"
         >
           <FaGithub className="mr-2" /> Register with GitHub

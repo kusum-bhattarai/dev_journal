@@ -85,9 +85,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isChatOpen, setIsChatOpen }) =>
     setCurrentUserId(tokenData.userId);
     fetchConversations();
 
+    const chatServiceUrl = process.env.REACT_APP_CHAT_SERVICE_URL || 'http://localhost:3003';
+
     // Only create a new socket if one doesn't exist or is disconnected
     if (!socketRef.current || !socketRef.current.connected) {
-      socketRef.current = io('http://localhost:3003', {
+      socketRef.current = io(chatServiceUrl, {
         auth: { token },
         reconnection: true,
       });

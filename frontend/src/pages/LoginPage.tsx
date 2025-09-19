@@ -42,7 +42,7 @@ const LoginPage = () => {
         return;
       }
       
-      const response = await fetch('http://localhost:3001/auth/login', {
+      const response = await fetch(`${process.env.REACT_APP_USER_SERVICE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -87,7 +87,7 @@ const LoginPage = () => {
           Login
         </Button>
         <a
-          href="http://localhost:3001/auth/github?state=login"
+          href="`${process.env.REACT_APP_USER_SERVICE_URL}/auth/github?state=login`"
           className="mt-4 block w-full text-center bg-matrix-green text-matrix-black px-4 py-2 rounded hover:bg-green-500 transition duration-300 flex items-center justify-center"
         >
           <FaGithub className="mr-2" /> Login with GitHub

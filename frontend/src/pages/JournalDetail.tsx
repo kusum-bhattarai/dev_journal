@@ -52,8 +52,10 @@ const JournalDetail: React.FC = () => {
   React.useEffect(() => {
     if (!token || !id) return;
 
+    const chatServiceUrl = process.env.REACT_APP_CHAT_SERVICE_URL || 'http://localhost:3003';
+
     if (!socketRef.current) {
-      const socket = io('http://localhost:3003', {
+      const socket = io(chatServiceUrl, {
         auth: { token },
       });
       socketRef.current = socket;
