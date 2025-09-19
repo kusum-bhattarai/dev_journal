@@ -14,7 +14,7 @@ app.use(express.json());
 
 // --- API Routes ---
 
-app.get('/api/journals', authMiddleware, async (req, res) => {
+app.get('/journals', authMiddleware, async (req, res) => {
   const userId = res.locals.user?.id;
   try {
     const query = `
@@ -32,7 +32,7 @@ app.get('/api/journals', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/journals', authMiddleware, async (req, res) => {
+app.post('/journals', authMiddleware, async (req, res) => {
   const userId = res.locals.user?.id;
   const { content } = req.body;
   if (!content) {
@@ -50,7 +50,7 @@ app.post('/api/journals', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/journals/:id/share', authMiddleware, async (req, res) => {
+app.post('/journals/:id/share', authMiddleware, async (req, res) => {
   const owner = res.locals.user;
   const journalId = parseInt(req.params.id, 10);
   const { collaboratorId, permission } = req.body;
@@ -119,7 +119,7 @@ app.post('/api/journals/:id/share', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/journals/:id', authMiddleware, async (req, res) => {
+app.delete('/journals/:id', authMiddleware, async (req, res) => {
   const userId = res.locals.user?.id;
   const journalId = parseInt(req.params.id, 10);
   try {
@@ -139,7 +139,7 @@ app.delete('/api/journals/:id', authMiddleware, async (req, res) => {
 });
 
 // GET single journal entry (Owner or Collaborator)
-app.get('/api/journals/:id', authMiddleware, async (req, res) => {
+app.get('/journals/:id', authMiddleware, async (req, res) => {
   const userId = res.locals.user?.id;
   const journalId = parseInt(req.params.id, 10);
   try {
@@ -169,7 +169,7 @@ app.get('/api/journals/:id', authMiddleware, async (req, res) => {
 });
 
 // PUT update journal entry (Owner or Collaborator)
-app.put('/api/journals/:id', authMiddleware, async (req, res) => {
+app.put('/journals/:id', authMiddleware, async (req, res) => {
   const userId = res.locals.user?.id;
   const journalId = parseInt(req.params.id, 10);
   const { content } = req.body;
