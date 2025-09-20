@@ -1,0 +1,27 @@
+services:
+  user-service:
+    image: <your_image_uri_from_ecr>
+    container_name: user-service
+    restart: always
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./.env
+
+  journal-service:
+    image: <your_image_uri_from_ecr>
+    container_name: journal-service
+    restart: always
+    ports:
+      - "3002:3002"
+    env_file:
+      - ./.env
+
+  chat-service:
+    image: <your_image_uri_from_ecr>
+    container_name: chat-service
+    restart: always
+    ports:
+      - "3003:3003"
+    env_file:
+      - ./.env
