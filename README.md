@@ -1,4 +1,4 @@
-# DevJournal: A Matrix-Inspired Daily Journal for Developers
+# DevJournal: A Matrix-Inspired Journal for Developers
 
 [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/kusum-bhattarai/dev_journal/.github/workflows/backend-ci.yml?branch=main&style=flat-square)](https://github.com/kusum-bhattarai/dev_journal/actions)
 [![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=flat-square&logo=vercel)](https://dev-journal-topaz.vercel.app/)
